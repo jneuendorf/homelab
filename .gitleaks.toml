@@ -1,0 +1,37 @@
+title = "homelab leak rules"
+
+# Keep gitleaks' built-in key/token rules (AWS, GitHub PAT, SSH keys, generic secrets…).
+[extend]
+useDefault = true
+
+# --- custom PII rules: structural leaks the manual sanitization is meant to catch ---
+
+[[rules]]
+id = "private-ipv4"
+description = "RFC1918 private IP — publish the 192.168.1.10 placeholder instead"
+regex = '''\b(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})\b'''
+
+[[rules]]
+id = "fs-uuid"
+description = "Filesystem/partition UUID — publish UUID=XXXX-XXXX instead"
+regex = '''UUID=[0-9A-Fa-f]{4,}-[0-9A-Fa-f-]{2,}'''
+
+[[rules]]
+id = "personal-email"
+description = "Personal gmx.de address — publish you@example.com instead"
+regex = '''[A-Za-z0-9._%+-]+@gmx\.de'''
+
+[[rules]]
+id = "webcal-token"
+description = "iCloud/webcal subscription URL (carries a calendar token)"
+regex = '''webcal://[^\s"'`)]+'''
+
+[allowlist]
+description = "sanitized placeholders that are safe to publish"
+regexTarget = "match"
+regexes = [
+  '''\b192\.168\.1\.10\b''',
+  '''\b192\.168\.1\.1\b''',
+  '''you@example\.com''',
+  '''you@gmx\.de''',
+]

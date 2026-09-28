@@ -1,0 +1,8 @@
+#!/bin/sh
+# Block secrets/PII from entering history. Bypass (deliberately) with: git commit --no-verify
+# Enable once per clone:  git config core.hooksPath .githooks
+if ! command -v gitleaks >/dev/null 2>&1; then
+    echo "gitleaks not installed — 'brew install gitleaks' (skipping scan)" >&2
+    exit 0
+fi
+exec gitleaks git --staged --redact --verbose
