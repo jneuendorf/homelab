@@ -5,6 +5,7 @@ export const ui = {
   en: {
     'site.tagline': 'Building a Proxmox homelab — from hardware to a verified backup.',
     'nav.guide': 'Guide',
+    'nav.projects': 'Projects',
     'nav.home': 'Home',
     'lang.label': 'Language',
     'lang.en': 'English',
@@ -24,6 +25,7 @@ export const ui = {
   de: {
     'site.tagline': 'Ein Proxmox-Homelab aufbauen — von der Hardware bis zum geprüften Backup.',
     'nav.guide': 'Anleitung',
+    'nav.projects': 'Projekte',
     'nav.home': 'Start',
     'lang.label': 'Sprache',
     'lang.en': 'English',

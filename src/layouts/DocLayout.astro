@@ -13,7 +13,7 @@ interface Props {
   translated?: boolean;
 }
 const { title, description, locale, slug, translated = true } = Astro.props;
-const nav = await getNav(locale);
+const { guide, projects } = await getNav(locale);
 ---
 
 <BaseLayout title={title} description={description} locale={locale} slug={slug}>
@@ -23,7 +23,7 @@ const nav = await getNav(locale);
       <nav>
         <ol>
           {
-            nav.map((item) => (
+            guide.map((item) => (
               <li>
                 <a
                   href={withBase(`${locale}/${item.slug}`)}
@@ -36,6 +36,27 @@ const nav = await getNav(locale);
           }
         </ol>
       </nav>
+      {projects.length > 0 && (
+        <>
+          <p class="sidebar__label sidebar__label--projects">{ui[locale]['nav.projects']}</p>
+          <nav>
+            <ul>
+              {
+                projects.map((item) => (
+                  <li>
+                    <a
+                      href={withBase(`${locale}/${item.slug}`)}
+                      aria-current={item.slug === slug ? 'page' : undefined}
+                    >
+                      {item.title}
+                    </a>
+                  </li>
+                ))
+              }
+            </ul>
+          </nav>
+        </>
+      )}
     </aside>
     <main class="content">
       {!translated && <p class="fallback">{ui[locale]['doc.fallback']}</p>}
@@ -67,16 +88,19 @@ const nav = await getNav(locale);
       color: var(--text-dim);
       margin: 0 0 0.5rem;
     }
-    .sidebar ol {
+    .sidebar ol,
+    .sidebar ul {
       list-style: none;
       margin: 0;
       padding: 0;
-      counter-reset: step;
       display: flex;
       flex-direction: column;
       gap: 0.15rem;
     }
-    .sidebar li {
+    .sidebar ol {
+      counter-reset: step;
+    }
+    .sidebar ol li {
       counter-increment: step;
     }
     .sidebar a {
@@ -87,7 +111,7 @@ const nav = await getNav(locale);
       color: var(--text-dim);
       font-size: 0.9rem;
     }
-    .sidebar a::before {
+    .sidebar ol a::before {
       content: counter(step) '. ';
       color: var(--text-dim);
       opacity: 0.6;
@@ -99,6 +123,9 @@ const nav = await getNav(locale);
       color: var(--accent);
       font-weight: 600;
       background: var(--accent-soft);
+    }
+    .sidebar__label--projects {
+      margin-top: 1.25rem;
     }
     .fallback {
       margin: 0 0 1.5rem;

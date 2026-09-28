@@ -35,15 +35,19 @@ export function resolveDoc(
   return { entry, translated: variants.has(locale) };
 }
 
-/** Ordered guide nav for a locale (title from the locale variant, else the default). */
+export type NavItem = { slug: string; title: string; order: number };
+
+/** Ordered nav for a locale, split into sidebar sections. */
 export async function getNav(locale: Locale) {
   const bySlug = await getDocsBySlug();
-  const items = [...bySlug.keys()]
-    .filter((slug) => slug !== 'index')
-    .map((slug) => {
-      const r = resolveDoc(bySlug, slug, locale)!;
-      return { slug, title: r.entry.data.title, order: r.entry.data.order };
-    })
-    .sort((a, b) => a.order - b.order);
-  return items;
+  const guide: NavItem[] = [];
+  const projects: NavItem[] = [];
+  for (const slug of bySlug.keys()) {
+    if (slug === 'index') continue;
+    const r = resolveDoc(bySlug, slug, locale)!;
+    const item = { slug, title: r.entry.data.title, order: r.entry.data.order };
+    (slug.startsWith('projects/') ? projects : guide).push(item);
+  }
+  const byOrder = (a: NavItem, b: NavItem) => a.order - b.order;
+  return { guide: guide.sort(byOrder), projects: projects.sort(byOrder) };
 }
