@@ -30,8 +30,10 @@ regex = '''webcal://[^\s"'`)]+'''
 description = "sanitized placeholders that are safe to publish"
 regexTarget = "match"
 regexes = [
-  '''\b192\.168\.1\.10\b''',
-  '''\b192\.168\.1\.1\b''',
+  '''\b192\.168\.1\.\d{1,3}\b''',
   '''you@example\.com''',
   '''you@gmx\.de''',
+]
+paths = [
+  '''dist/''',
 ]

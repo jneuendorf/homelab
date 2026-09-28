@@ -9,7 +9,7 @@ import { ui } from '../../i18n/ui';
 export function getStaticPaths() {
   // Defined inside getStaticPaths: Astro extracts this into an isolated chunk that only
   // carries the module's imports, not other top-level declarations.
-  const ROOTS = ['scripts', 'config']; // browsable source: executable scripts + config templates
+  const ROOTS = ['scripts', 'config', 'projects'];
   const walk = (dir: string, acc: string[] = []): string[] => {
     for (const name of fs.readdirSync(dir)) {
       const full = path.join(dir, name);
@@ -32,7 +32,7 @@ export function getStaticPaths() {
 const { rel } = Astro.props as { rel: string };
 const raw = fs.readFileSync(path.resolve(process.cwd(), rel), 'utf-8').replace(/\n+$/, '');
 const ext = rel.split('.').pop() ?? '';
-const lang = ({ sh: 'bash', conf: 'ini', ini: 'ini', ts: 'ts', example: 'bash' } as Record<string, string>)[ext] ?? 'plaintext';
+const lang = ({ sh: 'bash', conf: 'ini', ini: 'ini', ts: 'ts', js: 'javascript', css: 'css', example: 'bash' } as Record<string, string>)[ext] ?? 'plaintext';
 const t = ui[DEFAULT_LOCALE];
 ---
 
