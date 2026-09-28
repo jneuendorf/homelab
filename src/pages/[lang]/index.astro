@@ -1,0 +1,26 @@
+---
+import { render } from 'astro:content';
+import DocLayout from '../../layouts/DocLayout.astro';
+import { LOCALES, type Locale } from '../../consts';
+import { getDocsBySlug, resolveDoc } from '../../lib/docs';
+
+export function getStaticPaths() {
+  return LOCALES.map((lang) => ({ params: { lang } }));
+}
+
+const lang = Astro.params.lang as Locale;
+const bySlug = await getDocsBySlug();
+const resolved = resolveDoc(bySlug, 'index', lang);
+if (!resolved) throw new Error('Missing "index" doc');
+const { entry, translated } = resolved;
+const { Content } = await render(entry);
+---
+
+<DocLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  locale={lang}
+  translated={translated}
+>
+  <Content />
+</DocLayout>

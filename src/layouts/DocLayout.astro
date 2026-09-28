@@ -1,0 +1,172 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import { withBase, type Locale } from '../consts';
+import { getNav } from '../lib/docs';
+import { ui } from '../i18n/ui';
+
+interface Props {
+  title: string;
+  description?: string;
+  locale: Locale;
+  slug?: string;
+  /** false when the page is showing default-locale content as a fallback. */
+  translated?: boolean;
+}
+const { title, description, locale, slug, translated = true } = Astro.props;
+const nav = await getNav(locale);
+---
+
+<BaseLayout title={title} description={description} locale={locale} slug={slug}>
+  <div class="layout">
+    <aside class="sidebar">
+      <p class="sidebar__label">{ui[locale]['nav.guide']}</p>
+      <nav>
+        <ol>
+          {
+            nav.map((item) => (
+              <li>
+                <a
+                  href={withBase(`${locale}/${item.slug}`)}
+                  aria-current={item.slug === slug ? 'page' : undefined}
+                >
+                  {item.title}
+                </a>
+              </li>
+            ))
+          }
+        </ol>
+      </nav>
+    </aside>
+    <main class="content">
+      {!translated && <p class="fallback">{ui[locale]['doc.fallback']}</p>}
+      <article class="prose">
+        <slot />
+      </article>
+    </main>
+  </div>
+
+  <style>
+    .layout {
+      display: grid;
+      grid-template-columns: 16rem minmax(0, 1fr);
+      gap: 2rem;
+      max-width: 68rem;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 4rem;
+    }
+    .sidebar {
+      position: sticky;
+      top: 4rem;
+      align-self: start;
+      height: max-content;
+    }
+    .sidebar__label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      margin: 0 0 0.5rem;
+    }
+    .sidebar ol {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      counter-reset: step;
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+    .sidebar li {
+      counter-increment: step;
+    }
+    .sidebar a {
+      display: block;
+      padding: 0.3rem 0.5rem;
+      border-radius: 6px;
+      text-decoration: none;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+    }
+    .sidebar a::before {
+      content: counter(step) '. ';
+      color: var(--text-dim);
+      opacity: 0.6;
+    }
+    .sidebar a:hover {
+      background: var(--accent-soft);
+    }
+    .sidebar a[aria-current='page'] {
+      color: var(--accent);
+      font-weight: 600;
+      background: var(--accent-soft);
+    }
+    .fallback {
+      margin: 0 0 1.5rem;
+      padding: 0.6rem 0.9rem;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      background: var(--accent-soft);
+      font-size: 0.9rem;
+    }
+    .prose {
+      max-width: var(--max);
+    }
+    .prose :global(h1) {
+      font-size: 2rem;
+      line-height: 1.2;
+      margin: 0 0 0.5rem;
+    }
+    .prose :global(h2) {
+      margin-top: 2.25rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .prose :global(h3) {
+      margin-top: 1.75rem;
+    }
+    .prose :global(table) {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin: 1.25rem 0;
+    }
+    .prose :global(th),
+    .prose :global(td) {
+      border: 1px solid var(--border);
+      padding: 0.4rem 0.6rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    .prose :global(th) {
+      background: var(--code-bar-bg);
+    }
+    .prose :global(blockquote) {
+      margin: 1.25rem 0;
+      padding: 0.5rem 1rem;
+      border-left: 3px solid var(--accent);
+      background: var(--accent-soft);
+      border-radius: 0 6px 6px 0;
+    }
+    .prose :global(:not(pre) > code) {
+      background: var(--code-bg);
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      font-size: 0.88em;
+    }
+    .prose :global(pre) {
+      padding: 0.85rem 0.9rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    @media (max-width: 46rem) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .sidebar {
+        position: static;
+      }
+    }
+  </style>
+</BaseLayout>

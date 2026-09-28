@@ -1,0 +1,83 @@
+---
+import fs from 'node:fs';
+import path from 'node:path';
+import { Code } from 'astro:components';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { repoBlobUrl, withBase, DEFAULT_LOCALE } from '../../consts';
+import { ui } from '../../i18n/ui';
+
+export function getStaticPaths() {
+  // Defined inside getStaticPaths: Astro extracts this into an isolated chunk that only
+  // carries the module's imports, not other top-level declarations.
+  const ROOTS = ['scripts', 'config']; // browsable source: executable scripts + config templates
+  const walk = (dir: string, acc: string[] = []): string[] => {
+    for (const name of fs.readdirSync(dir)) {
+      const full = path.join(dir, name);
+      if (fs.statSync(full).isDirectory()) walk(full, acc);
+      else acc.push(full);
+    }
+    return acc;
+  };
+  const files: string[] = [];
+  for (const root of ROOTS) {
+    const abs = path.resolve(process.cwd(), root);
+    if (fs.existsSync(abs)) walk(abs, files);
+  }
+  return files.map((abs) => {
+    const rel = path.relative(process.cwd(), abs);
+    return { params: { path: rel }, props: { rel } };
+  });
+}
+
+const { rel } = Astro.props as { rel: string };
+const raw = fs.readFileSync(path.resolve(process.cwd(), rel), 'utf-8').replace(/\n+$/, '');
+const ext = rel.split('.').pop() ?? '';
+const lang = ({ sh: 'bash', conf: 'ini', ini: 'ini', ts: 'ts', example: 'bash' } as Record<string, string>)[ext] ?? 'plaintext';
+const t = ui[DEFAULT_LOCALE];
+---
+
+<BaseLayout title={rel} locale={DEFAULT_LOCALE}>
+  <main class="source">
+    <p class="source__back"><a href={withBase(`${DEFAULT_LOCALE}/`)}>← {t['source.back']}</a></p>
+    <header class="source__head">
+      <h1><code>{rel}</code></h1>
+      <a class="source__gh" href={repoBlobUrl(rel)} target="_blank" rel="noopener"
+        >{t['source.viewOnGithub']} ↗</a
+      >
+    </header>
+    <Code code={raw} lang={lang as any} themes={{ light: 'github-light', dark: 'github-dark' }} wrap />
+  </main>
+
+  <style>
+    .source {
+      max-width: 60rem;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 4rem;
+    }
+    .source__back {
+      font-size: 0.9rem;
+    }
+    .source__head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .source__head h1 {
+      font-size: 1.1rem;
+      margin: 0;
+      word-break: break-all;
+    }
+    .source :global(pre) {
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-size: 0.85rem;
+      overflow-x: auto;
+    }
+  </style>
+</BaseLayout>

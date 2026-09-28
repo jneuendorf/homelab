@@ -1,0 +1,119 @@
+---
+/**
+ * Embed a snippet from a real source file at build time.
+ *
+ *   <CodeSnippet file="scripts/phase1-harden/storage-harden.sh" start={12} end={28} />
+ *
+ * - `file`  repo-relative path to the source file (single source of truth — the executable script).
+ * - `start` / `end`  1-indexed inclusive line range; omit both to embed the whole file.
+ * - `lang`  Shiki language; inferred from the extension when omitted.
+ * - `title` header label; defaults to the file's basename.
+ *
+ * Renders the highlighted snippet plus links to view the whole file (on this site and on GitHub).
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { Code } from 'astro:components';
+import { repoBlobUrl, withBase } from '../consts';
+
+interface Props {
+  file: string;
+  start?: number;
+  end?: number;
+  lang?: string;
+  title?: string;
+}
+
+const { file, start, end, lang, title } = Astro.props;
+
+const abs = path.resolve(process.cwd(), file);
+const raw = fs.readFileSync(abs, 'utf-8');
+const lines = raw.split('\n');
+
+const from = start ?? 1;
+const to = end ?? lines.length;
+const isPartial = start != null || end != null;
+const code = (isPartial ? lines.slice(from - 1, to) : lines).join('\n').replace(/\n+$/, '');
+
+const extLang: Record<string, string> = {
+  sh: 'bash',
+  bash: 'bash',
+  conf: 'ini',
+  ini: 'ini',
+  ts: 'ts',
+  astro: 'astro',
+  example: 'bash',
+};
+const ext = file.split('.').pop() ?? '';
+const language = lang ?? extLang[ext] ?? 'plaintext';
+
+const label = title ?? file.split('/').pop();
+const rangeLabel = isPartial ? `${from}–${to}` : null;
+const fullFileUrl = withBase(`source/${file}`);
+const githubUrl = repoBlobUrl(file, isPartial ? from : undefined, isPartial ? to : undefined);
+---
+
+<figure class="snippet">
+  <figcaption class="snippet__bar">
+    <span class="snippet__file">
+      <code>{label}</code>
+      {rangeLabel && <span class="snippet__range">{rangeLabel}</span>}
+    </span>
+    <span class="snippet__links">
+      <a href={fullFileUrl}>Full file</a>
+      <a href={githubUrl} target="_blank" rel="noopener">GitHub&nbsp;↗</a>
+    </span>
+  </figcaption>
+  <Code code={code} lang={language as any} themes={{ light: 'github-light', dark: 'github-dark' }} wrap />
+</figure>
+
+<style>
+  .snippet {
+    margin: 1.25rem 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--code-bg);
+  }
+  .snippet__bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8rem;
+    background: var(--code-bar-bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .snippet__file code {
+    font-family: var(--mono);
+    color: var(--text);
+  }
+  .snippet__range {
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+  }
+  .snippet__links {
+    display: flex;
+    gap: 0.75rem;
+    white-space: nowrap;
+  }
+  .snippet__links a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .snippet__links a:hover {
+    text-decoration: underline;
+  }
+  .snippet :global(pre) {
+    margin: 0;
+    padding: 0.85rem 0.9rem;
+    border-radius: 0;
+    font-size: 0.85rem;
+  }
+</style>

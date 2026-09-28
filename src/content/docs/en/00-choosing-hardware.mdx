@@ -1,0 +1,74 @@
+---
+title: Choosing the Hardware
+description: Why a homelab mini-PC choice should be storage-and-network-first, and the buy-checklist that avoids the common traps.
+order: 10
+phase: 0
+---
+
+# Choosing the Hardware
+
+The most common mistake when buying a homelab box is chasing raw CPU. For a platform that will
+mostly run light services (a DNS filter, a few small web apps, a photo library), the CPU is almost
+never the bottleneck. **Storage topology and the network chip decide how far the box can grow.**
+
+## The principle: storage-and-network-first
+
+Pick for the two things you *can't* easily change later:
+
+- **Two M.2 NVMe slots.** This is the single most important spec. Two slots let you run a **ZFS
+  mirror** — OS and data with disk redundancy on one box. A one-slot machine can never self-heal.
+- **A good Ethernet chip** (Intel i225/i226, not Realtek). Realtek NICs cause driver headaches
+  under Proxmox once you start bridging and tagging VLANs.
+
+CPU and RAM you can over-buy cheaply; a missing second M.2 slot is a wall you hit forever.
+
+## The buy-checklist
+
+Verify each on the **manufacturer's spec page**, not review sites — the details that bite are
+exactly the ones reviewers gloss over.
+
+| Check | Target | Consequence if wrong |
+|---|---|---|
+| RAM type | DDR5 **SO-DIMM, socketed** | Soldered RAM = stuck at shipped capacity forever (the most-faked spec) |
+| Ethernet chip | Intel i225 / i226 | Realtek → driver pain under Proxmox VLAN/bridging |
+| M.2 slots | 2 (both usable for storage) | No mirror, can't separate OS from data |
+| IOMMU / AMD-Vi | Present + exposed in BIOS | No device passthrough to VMs, ever |
+| Virtualization | AMD-V / VT-x enabled | Proxmox won't run properly |
+
+A reference build that ticks all of these: an AMD Ryzen mini-PC (e.g. 8C/16T) with 32 GB DDR5
+SO-DIMM, 2× M.2 2280 PCIe 4.0 slots, and 2.5 GbE. Plenty of headroom for self-hosted apps and
+even small local models, without paying for server silicon.
+
+## Drives: mirror two *good* drives
+
+In a ZFS mirror both disks get identical writes, so the **weaker drive sets the pace and wears
+first**. If you're pairing a bundled drive with a bought one:
+
+- Prefer **TLC NAND with DRAM cache** (higher endurance, better sustained writes) over budget
+  **QLC, DRAM-less** drives.
+- Asymmetric endurance is fine — usable capacity is just the smaller disk. Treat the weaker drive
+  as the **transitional member**: watch its SMART wear and replace it in-pool when it climbs.
+- If the box ever runs a single un-mirrored disk, keep the *better* drive as the survivor.
+
+See **[ZFS storage on consumer SSDs](/en/02-zfs-storage)** for why the mirror is worth spending
+both slots on, and how to keep consumer NVMe alive under ZFS.
+
+## Know your gaps at purchase
+
+A single-node box starts with known limits — name them so they're deliberate, not surprises:
+
+- No redundancy beyond the mirror (it's one node).
+- No off-site copy on day one.
+- USB backup SSDs are likely one logical copy until you add a second target.
+
+None of these block starting. They become the **add-later** list, roughly in priority order:
+
+1. **Off-site / cloud backup** — survives theft, fire, ransomware (what local backup can't).
+2. **A UPS** — cheap insurance against power-loss corruption. *(See [UPS & graceful shutdown](/en/03-ups-auto-shutdown).)*
+3. **VPN** (outbound-mesh, e.g. Tailscale) before exposing anything to the internet.
+4. **A NAS with real SATA bays** — actual RAID and bulk media capacity.
+
+Prices in this niche move fast and review sites proved unreliable — check current listings directly
+and cross-reference against the Proxmox forums or r/homelab before buying.
+
+**Next:** [Installing & hardening Proxmox →](/en/01-proxmox-install-harden)

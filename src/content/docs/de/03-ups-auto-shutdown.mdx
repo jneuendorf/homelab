@@ -1,0 +1,125 @@
+---
+title: USV & sauberes Herunterfahren
+description: Aus „harter Absturz mitten im Schreiben" wird „sauberes Parken in unter zwei Minuten" — mit einer line-interaktiven USV und apcupsd.
+order: 40
+phase: 1
+---
+
+import CodeSnippet from '../../../components/CodeSnippet.astro';
+
+# USV & sauberes Herunterfahren
+
+Ein ZFS-Mirror schützt vor einer sterbenden Disk. Er kann **nicht** vollständig davor schützen,
+mitten im Schreiben den Strom zu verlieren — ein Spannungseinbruch oder ein zwei Sekunden langer
+Aussetzer, der den Host beim Flushen einer Transaktion neu startet. Eine USV verwandelt diesen
+„harten Absturz mitten im Schreiben" in ein **sauberes Parken in unter zwei Minuten**, und ihr AVR
+glättet täglich unsaubere Netzspannung. Die billigste Versicherung im Rack.
+
+Das Ziel hier ist **sauberes Herunterfahren, nicht das Überstehen langer Ausfälle.** Du brauchst
+~2 Minuten Laufzeit zum sicheren Parken, keine Stunden.
+
+## Was kaufen
+
+Fürs Homelab ist die Checkliste kurz — und eine Eigenschaft ist die, die übersehen wird:
+
+- [ ] **Line-interaktive** Topologie (nicht Standby/Offline, nicht Online-Doppelwandler)
+- [ ] **AVR** (automatische Spannungsregelung)
+- [ ] **Ein USB-*Daten*-Port** — der Teil, der das automatische Herunterfahren ermöglicht. Manche
+      Geräte führen USB nur als *Lade*-Ausgang — das ist hier nutzlos. Bestätige eine USB-B-/HID-Datenschnittstelle.
+- [ ] **NUT- oder apcupsd-kompatibel** (APC und CyberPower sind es beide)
+- [ ] **~500–650 VA / ~300–400 W** — du wirst bei ~5 % Last liegen; größer ist verschwendetes Geld
+- [ ] **Wechselbarer Standard-Akku** (ein Verschleißteil)
+
+Budget ~60–90 € für ein Gerät mit ~600 VA und trapezförmiger Sinus-Näherung (z. B. APC Back-UPS
+BX/ES, CyberPower UT/BR). Ein echter Sinus-Ausgang zählt nur für Server-Netzteile mit aktivem PFC;
+ein Mini-PC an einem Laptop-Netzteil verträgt eine trapezförmige Kurve problemlos.
+
+> **Die Falle:** Bei kleinen APC-Geräten entscheidet die Modellnummer alles. Ein `BX500MI` hat den
+> USB-Datenport; ein `BX500CI` hat nur LED + Alarm — keine Kommunikation, kein automatisches
+> Herunterfahren. Prüfe den Datenport immer auf der Produktseite, nicht nur die VA-Angabe.
+
+## Hardware-Anschluss
+
+- **Zuerst den Akku scharf schalten.** Ein neues Gerät wird mit getrenntem Akku ausgeliefert (eine
+  gelbe Isolierlasche). Drücke den Stecker vollständig ein, bis er klickt, und setze ihn *fest* — ein
+  lockerer Stecker liest sich über USB als sporadische Akku-Trennung (`REPLACEBATT`/`NOBATT`-Flattern
+  mit Fehlerpiepen), obwohl der Akku die Last noch trägt.
+- **Stecke den Host in eine akkugepufferte Steckdose** und das **USB-B → Host**-Kabel in den
+  **hinteren USB-2.0-Port** des Hosts. USB-HID läuft mit USB-1.1-Geschwindigkeit, Bandbreite ist also
+  egal — und USB 2.0 umgeht die USB3/USB4-Autosuspend-Pfade, die den Link in `COMMLOST` fallen lassen
+  können. Reserviere die schnellen Ports für eine Backup-SSD, wo Durchsatz wirklich zählt.
+- **Netz → USV-Eingang → Host.** Speise die USV direkt aus der Wand. Eine einfache
+  Mehrfachsteckdose ist in Ordnung, aber **niemals eine überspannungsgeschützte Leiste zwischen Wand
+  und USV** — ihre Filterung kann das AVR der USV zu falschen Akku-Umschaltungen verwirren, und sie ist
+  ohnehin redundant.
+
+Lass sie ein paar Stunden laden, bevor du der Laufzeitschätzung traust (der Netz-Ausstecktest
+funktioniert sofort).
+
+## apcupsd einrichten
+
+Für eine einzelne Box, die das USB-Kabel besitzt, ist `apcupsd` die einfachste Wahl (NUT ist für den
+Fall, dass eine zweite Maschine über das Netzwerk mithören muss). Ein idempotentes Skript installiert
+es, richtet es auf die USB-HID-USV aus, schreibt sinnvolle Abschalt-Schwellen und verifiziert:
+
+<CodeSnippet file="scripts/phase1-harden/apcupsd-setup.sh" start={13} end={19} title="apcupsd-setup.sh — die Abschalt-Schwellen" />
+
+Der Ausschnitt oben ist der Kern — die Schwellen. Das vollständige Skript installiert das Paket,
+richtet es auf die USB-HID-USV aus und verifiziert; führe es als Root auf dem Host aus (Link **Ganze
+Datei** oben).
+
+Dann bestätige, dass es die USV sieht:
+
+```bash
+# (Host)
+apcaccess status | grep -E 'STATUS|MODEL|BCHARGE|TIMELEFT|LOADPCT'
+# erwartet STATUS : ONLINE
+```
+
+### Die Abschalt-Schwellen
+
+Im Akkubetrieb wirken drei Einstellungen als **ODER** — die erste, die erreicht wird, startet das
+Herunterfahren:
+
+| `apcupsd.conf` | Löst aus, wenn… | Setzen auf |
+|---|---|---|
+| `BATTERYLEVEL` | Ladung ≤ diese % | `20` (Rückfallebene — Schätzungen driften bei fast leer) |
+| `MINUTES` | geschätzte Restlaufzeit < diese | `10` (**primärer Auslöser** bei geringer Last) |
+| `TIMEOUT` | Sekunden im Akkubetrieb | `0` im Produktivbetrieb (eine grobe Stoppuhr nur zum Testen) |
+
+Richte sie an deiner **echten** Abschaltzeit aus, nicht am Datenblatt: miss ein sauberes `poweroff`
+(Gäste stoppen + ZFS flushen dauert oft 30–90 s), nenne es `T`, und setze `MINUTES` auf ≈ 2–3× `T`.
+Bei riesiger Laufzeit kostet eine größere Reserve nichts.
+
+## Testen — der ganze Sinn
+
+**Netz-Ausstecktest.** Starte in einer zweiten Sitzung die Live-Überwachung, dann zieh das Netz:
+
+<CodeSnippet file="scripts/phase1-harden/ups-watch.sh" title="ups-watch.sh" />
+
+Du solltest `ONBATT` innerhalb ~1 Sekunde sehen und den Akku sanft entladen. Stelle den Strom wieder
+her und beobachte die Rückkehr zu `ONLINE`. Mit `TIMEOUT 0` fährt ein kurzes Ziehen (10–30 s) eine
+gesunde Box nicht herunter.
+
+**Das volle Parken proben (optional).** Um das eigentliche Herunterfahren zu sehen, setze
+vorübergehend `TIMEOUT 60`, `systemctl restart apcupsd`, zieh das Netz und beobachte das Parken nach
+60 s — dann wieder auf `0`. Beim Herunterfahren stoppt Proxmox jeden laufenden Gast einzeln
+(Gast-Agent → ACPI/`pct shutdown` → harter Stopp erst nach dem Timeout jedes Gasts), exportiert den
+ZFS-Pool sauber und schaltet ab. Ein echter Ausfall parkt ohne Schaden.
+
+> **Zwei Dinge, die überraschen:**
+> - **Das USB-Kabel ziehen ≠ Herunterfahren.** Ohne Datenkabel ist apcupsd blind — es loggt nur
+>   `COMMLOST` und läuft am Netz weiter. Aber während USB abgezogen ist, gibt es **keinen Schutz**:
+>   ein echter Ausfall kappt den Host dann hart. Der USB-Link *ist* der Sicherheitsdraht.
+> - **Nach der Alterung des Akkus neu verifizieren.** Die Laufzeitschätzung eines müden Akkus driftet
+>   — genau dann, wenn knappe Margen zubeißen. Wiederhole den Ausstecktest, wenn der Akku ein paar
+>   Monate auf dem Buckel hat.
+
+## Bonus: ein kostenloses Strommessgerät
+
+Sobald apcupsd verdrahtet ist, meldet `apcaccess` `LOADPCT` (Watt ≈ `LOADPCT` × Watt-Nennwert der
+USV), dazu Netzspannung und Akkustatus — und es meldet *während* eines Ausfalls über lokales USB
+weiter, wenn ein WLAN-Steckdosenmessgerät nicht kann. Grob, aber schon verkabelt und gut genug, um
+den Verbrauch der Box zu erfassen.
+
+**Weiter:** [Ein geprüftes 3-2-1-Backup →](/de/04-backup-3-2-1)

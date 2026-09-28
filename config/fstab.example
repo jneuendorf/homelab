@@ -1,0 +1,13 @@
+# Example /etc/fstab entries for the two external backup SSDs.
+# Mount by UUID (survives port changes and /dev/sdX reshuffles). Get your UUIDs with:
+#   blkid            or      lsblk -o NAME,FSTYPE,UUID,LABEL
+#
+# <file system>                 <mount point>     <type> <options>               <dump> <pass>
+UUID=XXXX-XXXX                  /mnt/ssd-onsite   exfat  defaults,nofail         0 0
+UUID=xxxxxxxx-xxxx-xxxx-xxxx-x  /mnt/ssd-offsite  ext4   defaults,noauto,nofail  0 2
+#
+# onsite SSD (always plugged):  nofail        → auto-mounts when present, never blocks boot if absent
+# offsite SSD (rotates out):    noauto,nofail → only mounts on demand (`mount /mnt/ssd-offsite`) when docked
+#
+# Apply without rebooting:  systemctl daemon-reload && mount -a
+# (mount -a respects noauto, so the offsite drive is correctly skipped.)

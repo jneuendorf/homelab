@@ -1,0 +1,36 @@
+---
+title: Glossary
+description: Homelab, Proxmox, ZFS, and backup terms used throughout the series.
+order: 100
+---
+
+# Glossary
+
+| Term | Meaning |
+|---|---|
+| **Proxmox VE (PVE)** | Open-source virtualization platform (KVM VMs + LXC containers) with a web UI. The homelab's OS. |
+| **LXC** | Lightweight Linux container sharing the host kernel. Low overhead; ideal for one standalone service. |
+| **VM** | Full virtual machine with its own kernel. Complete isolation; the right home for a Docker host. |
+| **unprivileged LXC** | Container whose root maps to an unprivileged host user (uid 100000) — a breakout doesn't own the host. The default. |
+| **bind-mount** | Exposing a host directory/dataset inside an LXC (`mp0`) so the app reads host storage directly. |
+| **ZFS** | Copy-on-write filesystem with checksums, self-healing, snapshots, and built-in mirroring. |
+| **pool / vdev** | A ZFS pool is built from vdevs; a 2-disk **mirror vdev** is the simplest redundant layout. |
+| **dataset** | A filesystem carved from a pool — like a folder that behaves like its own partition, with its own compression, quota, and snapshots. |
+| **ashift** | ZFS sector-size exponent; `12` = 4K sectors, correct for modern SSDs. |
+| **ARC** | ZFS's in-RAM read cache. Uses free memory; PVE caps it (~10%) so guests aren't starved. |
+| **scrub** | ZFS reads every block, verifies checksums, and repairs mismatches from redundancy. Read-only; run every 1–2 weeks. |
+| **snapshot** | Instant, near-free frozen view of a dataset. An *undo* layer — dies with the pool, so **not** a backup. |
+| **TRIM** | Tells an SSD which blocks are free, keeping write latency and wear down. |
+| **write amplification** | Physical bytes written ÷ logical bytes — the consumer-SSD cost of ZFS's CoW + checksums. |
+| **SMART "Percentage Used"** | An NVMe wear indicator (% of rated endurance; can exceed 100). |
+| **TBW** | Terabytes Written — a drive's rated write endurance. |
+| **rsync** | Mirrors files 1:1. Fast for ingest, but deletions/corruption propagate — **not** a backup on its own. |
+| **restic** | Encrypted, deduplicated, versioned backup tool with self-verification (`restic check`). |
+| **vzdump** | Proxmox's built-in whole-guest backup (full archive each run). |
+| **PBS** | Proxmox Backup Server — incremental-forever, deduplicated, single-file restore. |
+| **3-2-1** | 3 copies · 2 media types · 1 off-site. The governing backup rule. |
+| **UPS** | Uninterruptible Power Supply — battery that rides out blinks and signals a graceful shutdown. |
+| **line-interactive + AVR** | UPS topology that trims dirty mains voltage without going to battery. What to buy for a homelab. |
+| **apcupsd / NUT** | Daemons that read the UPS over USB and trigger shutdown. `apcupsd` is simplest for APC. |
+| **Shoutrrr** | Notification library (Backrest uses it) that sends alerts via an SMTP/etc. URL. |
+| **DS-Lite / CGNAT** | ISP setup sharing one public IPv4 — blocks inbound port-forwarding, so VPNs must connect *outbound* (e.g. Tailscale). |

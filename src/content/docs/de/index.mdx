@@ -1,0 +1,43 @@
+---
+title: Ein Proxmox-Homelab aufbauen
+description: Eine praxisnahe Anleitung für ein Single-Node-Proxmox-Homelab — von der Hardware bis zum geprüften 3-2-1-Backup.
+order: 0
+---
+
+# Ein Proxmox-Homelab aufbauen
+
+Eine praxisnahe, meinungsstarke Anleitung: wie aus einem kleinen Mini-PC eine belastbare
+Self-Hosting-Plattform wird — mit der Begründung hinter jeder Entscheidung, nicht nur den Befehlen.
+Alles hier läuft auf einem **einzelnen Knoten**; nichts setzt ein Rack, ein Cluster oder ein NAS voraus.
+
+Der Leitgedanke durchweg: **Redundanz ist kein Backup, und ein Backup, das du noch nie
+wiederhergestellt hast, ist noch kein Backup.** Jede Phase baut das Sicherheitsnetz auf, bevor das
+kommt, was es schützen soll.
+
+## Die Serie
+
+1. **[Die Hardware auswählen](/de/00-choosing-hardware)** — warum Storage und Netzwerk vor CPU-Leistung gehen, und die Kauf-Checkliste gegen die üblichen Mini-PC-Fallen.
+2. **[Proxmox installieren & härten](/de/01-proxmox-install-harden)** — ISO, statische IP, die Repo-Falle, SSH-Keys, E-Mail-Alarme und eine VLAN-fähige Bridge.
+3. **[ZFS-Storage auf Consumer-SSDs](/de/02-zfs-storage)** — ZFS vs. LVM für einen 2-Disk-Mirror, und die Maßnahmen, die Consumer-NVMe unter ZFS überlebensfähig machen.
+4. **[USV & sauberes Herunterfahren](/de/03-ups-auto-shutdown)** — aus „harter Absturz mitten im Schreiben" wird „sauberes Parken in unter zwei Minuten" mit `apcupsd`.
+5. **[Ein geprüftes 3-2-1-Backup](/de/04-backup-3-2-1)** — das Datenmodell, `rsync` + `restic` + ZFS-Snapshots, und wie man eine Wiederherstellung wirklich beweist.
+6. **[Backups automatisieren mit Backrest](/de/05-backup-automation-backrest)** — Zeitplanung, Aufbewahrung, Bit-Rot-Prüfungen und Fehler-E-Mails auf Basis von restic.
+7. **[Gäste sichern](/de/06-guest-backups)** — den unersetzlichen Zustand über einen sauberen Vertrag exportieren, statt ganze Disks zu imagen.
+
+Neu bei den Fachbegriffen? Beginne mit dem **[Glossar](/de/glossary)**.
+
+## Das mentale Modell
+
+Alles in der Serie dient einer Datenfluss-Regel:
+
+> **Frische Daten landen auf dem Host und fließen dann nach außen: Host → vor Ort → außer Haus. Niemals nach innen.**
+
+| Ebene | Wo | Schützt gegen |
+|---|---|---|
+| **Quelle der Wahrheit** | Host-NVMe-Mirror (ZFS, 2 Disks) | Ausfall einer Disk · „Ups"-Änderungen (Snapshots) |
+| **Kopie #2 — lokal** | Vor-Ort-SSD (immer eingesteckt) | Tod von Host / Pool |
+| **Kopie #3 — außer Haus** | Außer-Haus-SSD (rotiert aus dem Haus) | Feuer · Diebstahl |
+
+Der Host ist redundant und selbstheilend — dort organisiert man die Daten. Die Backups strahlen von
+ihm nach außen: ein Backup räumt man nie auf, und frische Daten landen nie zuerst auf einem nackten
+USB-Stick.

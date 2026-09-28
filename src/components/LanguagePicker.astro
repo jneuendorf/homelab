@@ -1,0 +1,49 @@
+---
+import { LOCALES, withBase, type Locale } from '../consts';
+import { ui } from '../i18n/ui';
+
+interface Props {
+  locale: Locale;
+  /** Current doc slug, or undefined on the landing page. */
+  slug?: string;
+}
+const { locale, slug } = Astro.props;
+
+const hrefFor = (loc: Locale) => withBase(slug ? `${loc}/${slug}` : `${loc}/`);
+---
+
+<nav class="langpicker" aria-label={ui[locale]['lang.label']}>
+  {
+    LOCALES.map((loc) => (
+      <a
+        href={hrefFor(loc)}
+        class:list={['langpicker__item', { active: loc === locale }]}
+        aria-current={loc === locale ? 'true' : undefined}
+        hreflang={loc}
+      >
+        {ui[locale][`lang.${loc}` as const]}
+      </a>
+    ))
+  }
+</nav>
+
+<style>
+  .langpicker {
+    display: inline-flex;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+  }
+  .langpicker__item {
+    padding: 0.15rem 0.5rem;
+    border-radius: 6px;
+    color: var(--text-dim);
+    text-decoration: none;
+  }
+  .langpicker__item:hover {
+    background: var(--accent-soft);
+  }
+  .langpicker__item.active {
+    color: var(--accent);
+    font-weight: 600;
+  }
+</style>

@@ -1,0 +1,118 @@
+---
+title: UPS & Graceful Shutdown
+description: Turn "hard crash mid-write" into "clean park in under two minutes" with a line-interactive UPS and apcupsd.
+order: 40
+phase: 1
+---
+
+import CodeSnippet from '../../../components/CodeSnippet.astro';
+
+# UPS & Graceful Shutdown
+
+A ZFS mirror protects against a disk dying. It **can't** fully protect against losing power
+mid-write — a brownout or a two-second blink that reboots the host while it's flushing a
+transaction. A UPS turns that "hard crash mid-write" into a **graceful park in under two minutes**,
+and its AVR trims dirty mains every day. It's the cheapest insurance in the rack.
+
+The goal here is **clean shutdown, not surviving long outages.** You need ~2 minutes of runtime to
+park safely, not hours.
+
+## What to buy
+
+For a homelab the checklist is short — and one spec is the one people skip:
+
+- [ ] **Line-interactive** topology (not standby/offline, not online double-conversion)
+- [ ] **AVR** (automatic voltage regulation)
+- [ ] **A USB *data* port** — the part that enables auto-shutdown. Some units list USB as a
+      *charging* output only; that's useless here. Confirm a USB-B / HID data interface.
+- [ ] **NUT- or apcupsd-compatible** (APC and CyberPower both are)
+- [ ] **~500–650 VA / ~300–400 W** — you'll sit at ~5% load; bigger is wasted money
+- [ ] **Replaceable, standard battery** (it's a consumable)
+
+Budget ~€60–90 for a stepped-sine ~600 VA unit (e.g. APC Back-UPS BX/ES, CyberPower UT/BR). A pure
+sine-wave output only matters for active-PFC *server* PSUs; a mini-PC on a laptop-style DC adapter
+tolerates a stepped waveform fine.
+
+> **The trap:** with small APC units the model number decides everything. A `BX500MI` has the USB
+> data port; a `BX500CI` is LED + alarm only — no comms, no auto-shutdown. Always verify the data
+> port on the product page, not just the VA rating.
+
+## Hardware hookup
+
+- **Arm the battery first.** A fresh unit ships with the battery disconnected (a yellow isolator
+  tab). Push the connector fully in until it clicks, and seat it *firmly* — a loose connector reads
+  over USB as an intermittent battery-disconnect (`REPLACEBATT`/`NOBATT` flapping with fault beeps)
+  even though the battery still carries the load.
+- **Plug the host into a battery-backup outlet**, and the **USB-B → host** cable into the host's
+  **rear USB 2.0 port**. USB-HID runs at USB-1.1 speeds, so bandwidth is irrelevant — and USB 2.0
+  sidesteps the USB3/USB4 autosuspend paths that can drop the link into `COMMLOST`. Reserve the
+  fast ports for a backup SSD, where throughput actually matters.
+- **Mains → UPS input → host.** Feed the UPS straight from the wall. A plain multi-outlet strip is
+  fine, but **never put a surge-protected strip between wall and UPS** — its filtering can confuse
+  the UPS's AVR into false battery transfers, and it's redundant anyway.
+
+Let it charge a few hours before trusting the runtime estimate (the mains-pull test works
+immediately).
+
+## Wire up apcupsd
+
+For a single box owning the USB cable, `apcupsd` is the simplest choice (NUT is for when a second
+machine must listen over the network). One idempotent script installs it, points it at the USB HID
+UPS, writes sane shutdown thresholds, and verifies:
+
+<CodeSnippet file="scripts/phase1-harden/apcupsd-setup.sh" start={13} end={19} title="apcupsd-setup.sh — the shutdown thresholds" />
+
+The snippet above is the heart of it — the thresholds. The full script installs the package, points
+it at the USB HID UPS, and verifies; run it as root on the host (**Full file** link above).
+
+Then confirm it sees the UPS:
+
+```bash
+# (host)
+apcaccess status | grep -E 'STATUS|MODEL|BCHARGE|TIMELEFT|LOADPCT'
+# expect STATUS : ONLINE
+```
+
+### The shutdown thresholds
+
+While on battery, three settings act as an **OR** — the first one hit starts the shutdown:
+
+| `apcupsd.conf` | Fires when… | Set to |
+|---|---|---|
+| `BATTERYLEVEL` | charge ≤ this % | `20` (backstop — SLA estimates drift near empty) |
+| `MINUTES` | est. runtime left < this | `10` (**primary trigger** on a light-load box) |
+| `TIMEOUT` | seconds elapsed on battery | `0` in production (a blunt test-only stopwatch) |
+
+Key them off your **real** shutdown time, not the datasheet: time one clean `poweroff` (stopping
+guests + flushing ZFS often takes 30–90 s), call it `T`, and set `MINUTES` to ≈ 2–3× `T`. On a
+box with huge runtime a bigger reserve costs nothing.
+
+## Test it — the whole point
+
+**Mains-pull test.** In a second session, run the live watch, then pull the mains:
+
+<CodeSnippet file="scripts/phase1-harden/ups-watch.sh" title="ups-watch.sh" />
+
+You should see `ONBATT` appear within ~1 second and the battery discharge gently. Restore power and
+watch it return to `ONLINE`. With `TIMEOUT 0`, a brief pull (10–30 s) won't shut a healthy box down.
+
+**Rehearse the full park (optional).** To watch the actual shutdown, temporarily set `TIMEOUT 60`,
+`systemctl restart apcupsd`, pull mains, and watch it park after 60 s — then set it back to `0`.
+On shutdown, Proxmox stops every running guest one-by-one (guest agent → ACPI/`pct shutdown` → hard
+stop after each guest's timeout), exports the ZFS pool cleanly, and powers off. A real outage parks
+without damage.
+
+> **Two things that surprise people:**
+> - **Pulling the USB cable ≠ shutdown.** Without the data cable apcupsd is blind — it just logs
+>   `COMMLOST` and keeps running on mains. But while USB is unplugged there's **no protection**: a
+>   real outage then hard-cuts the host. The USB link *is* the safety wire.
+> - **Re-verify after the battery ages.** A tired SLA pack's runtime estimate drifts — exactly when
+>   thin margins bite. Re-run the mains-pull test once the pack has some months on it.
+
+## Bonus: a free power meter
+
+Once apcupsd is wired, `apcaccess` reports `LOADPCT` (watts ≈ `LOADPCT` × the UPS's watt rating),
+plus line voltage and battery state — and it keeps reporting *during* an outage over local USB,
+when a WiFi smart plug can't. Coarse, but already cabled and good enough to chart the box's draw.
+
+**Next:** [A verified 3-2-1 backup →](/en/04-backup-3-2-1)

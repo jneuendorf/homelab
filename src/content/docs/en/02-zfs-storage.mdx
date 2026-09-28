@@ -1,0 +1,105 @@
+---
+title: ZFS Storage on Consumer SSDs
+description: ZFS vs LVM for a 2-disk mirror, and the wear mitigations that make consumer NVMe survivable under ZFS.
+order: 30
+phase: 1
+---
+
+import CodeSnippet from '../../../components/CodeSnippet.astro';
+
+# ZFS Storage on Consumer SSDs
+
+ZFS gives you checksums, self-healing, instant snapshots, and cheap replication. The catch on a
+homelab budget is **write amplification** on consumer SSDs. This page covers when ZFS is worth it,
+and the mitigations that make consumer NVMe survive it comfortably.
+
+## ZFS or LVM? It depends on disk topology, not the apps
+
+For light services the workload barely touches the filesystem — so the choice is driven by how
+many disks you have:
+
+- **Single disk** → ZFS's headline feature (self-healing) *can't apply*, yet you still pay its RAM
+  and write-amplification cost. **LVM-Thin** is the lighter, pragmatic pick.
+- **2-disk mirror** → ZFS earns its keep: self-healing, snapshots, `zfs send` replication.
+
+| Factor | ZFS | LVM-Thin |
+|---|---|---|
+| Checksums / bit-rot detection | ✅ | ❌ |
+| Self-healing (needs redundancy) | ✅ | ❌ |
+| Snapshots | ✅ instant, CoW | ✅ thin |
+| Replication (`send`/`recv`) | ✅ | ❌ |
+| Transparent compression | ✅ lz4, ~free | ❌ |
+| Software mirror | ✅ built-in | ❌ (needs mdraid) |
+| RAM cost (ARC) | Higher | Low |
+| SSD write amplification | Higher | Lower |
+
+> ZFS ↔ ext4/LVM is **not** convertible in place — decide before installing. (ZFS single-disk →
+> mirror *is* possible later via `zpool attach`, but boot redundancy then needs manual setup, so
+> installing straight to a mirror is cleaner.)
+
+**The honest verdict for a 2-disk light box: ZFS wins** — every high-relevance factor favors it
+*except* consumer-SSD endurance. The wear scenarios where the caution camp is right (heavy database
+sync writes, whole-disk encryption, ZFS-on-ZFS nesting) aren't in a typical self-hosting stack. If
+you *were* running heavy databases on consumer drives, the answer would flip to LVM.
+
+## The wear mitigations (do all of these)
+
+Much of the "ZFS killed my SSD" lore is really **Proxmox itself** — HA/cluster daemons and chatty
+guest logging writing constantly — which hits ext4/LVM too. Apply these once and consumer NVMe is
+fine for a light load. They're all in one idempotent script that also doubles as a verifier:
+
+<CodeSnippet file="scripts/phase1-harden/storage-harden.sh" start={20} end={27} title="storage-harden.sh — atime + TRIM (steps 2–3)" />
+
+Run the whole idempotent script (all six mitigations) as root on the host — it doubles as a verifier, so re-run it anytime: `storage-harden.sh rpool`. Use the **Full file** link above to read every step.
+
+What it does, and why:
+
+1. **Compression `lz4`** — near-free, often *raises* throughput, and fewer physical bytes = less
+   wear. (Proxmox's default `on` is already lz4.)
+2. **`atime=off`** — by default every file *read* also writes an access-time stamp; on copy-on-write
+   ZFS that write allocates new blocks. Nothing in a typical stack reads `atime`, so turning it off
+   is a free win. (`relatime` still writes up to once/file/day — a daily library scan becomes a
+   burst of metadata writes, so `atime=off` is stricter and better here.)
+3. **Periodic TRIM** — `zpool set autotrim=on` plus the weekly `fstrim.timer`, so freed blocks get
+   released to the controller (keeps write latency and wear down).
+4. **Disable single-node HA daemons** — `pve-ha-lrm` and `pve-ha-crm` run by default and keep
+   writing status into the cluster filesystem. With no cluster they do nothing but wear the SSD.
+   (`corosync` is already inactive on a standalone node.) Re-enable them only if you ever cluster.
+5. **Weekly scrub via the systemd timer** — a scrub reads every block, verifies checksums, and
+   repairs mismatches *while the pool is still redundant*, so a later disk failure rebuilds from
+   clean data. Scrubs are read-only (no wear) and cheap on a ~1 TB mirror, so weekly is free and
+   strictly safer than the packaged monthly cron (which the script comments out to avoid doubling).
+6. **Install `smartmontools`** and report each NVMe's **`Percentage Used`** wear indicator.
+
+## Watch the weaker drive
+
+In a mirror there's no "primary" — both members get identical writes. But if the disks are
+mismatched (say a budget QLC/DRAM-less drive paired with a TLC/DRAM one), the weaker drive wears
+faster in percentage terms and hits its wall first. Identify drives by **model, not device number**
+(kernel numbering isn't stable):
+
+```bash
+# (host)
+for d in /dev/nvme[0-9]; do
+  printf '%s = ' "$d"; smartctl -i "$d" | awk -F': *' '/Model Number/{print $2}'
+done
+```
+
+When the weak drive's `Percentage Used` climbs high (~80%+), replace it in-pool — ZFS makes the
+swap trivial and resilvers onto the new disk:
+
+```bash
+# (host) — members are listed by /dev/disk/by-id paths that contain the model name
+zpool status rpool
+zpool replace rpool <old-drive-by-id> <new-drive-by-id>
+```
+
+## A note on RAM
+
+The "1 GB of RAM per TB" rule is a loose floor, not a requirement — ZFS just caches less with less
+RAM. 32 GB is ample for a light box; Proxmox caps ARC (~10%, tunable) so guests aren't starved.
+
+And the standing reminder: **the mirror survives a dead disk, not a fat-finger or ransomware.**
+Real backups still go off the host — that's the [next three pages](/en/04-backup-3-2-1).
+
+**Next:** [UPS & graceful shutdown →](/en/03-ups-auto-shutdown)

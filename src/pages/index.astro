@@ -1,0 +1,17 @@
+---
+import { withBase } from '../consts';
+const target = withBase('en/');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="refresh" content={`0;url=${target}`} />
+    <link rel="canonical" href={target} />
+    <title>Homelab</title>
+  </head>
+  <body>
+    <a href={target}>Continue to the guide →</a>
+  </body>
+</html>

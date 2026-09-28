@@ -1,0 +1,117 @@
+---
+import { SITE_TITLE, type Locale } from '../consts';
+import LanguagePicker from '../components/LanguagePicker.astro';
+import { withBase } from '../consts';
+import { ui } from '../i18n/ui';
+
+interface Props {
+  title: string;
+  description?: string;
+  locale: Locale;
+  slug?: string;
+}
+const { title, description, locale, slug } = Astro.props;
+const fullTitle = title === SITE_TITLE ? title : `${title} · ${SITE_TITLE}`;
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="icon" href={withBase('favicon.svg')} />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="topbar__brand" href={withBase(`${locale}/`)}>🏠 {SITE_TITLE}</a>
+      <nav class="topbar__nav">
+        <a href={withBase(`${locale}/`)}>{ui[locale]['nav.guide']}</a>
+        <LanguagePicker locale={locale} slug={slug} />
+      </nav>
+    </header>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --bg: #ffffff;
+    --text: #1b1b1f;
+    --text-dim: #5c5f66;
+    --border: #e3e5e8;
+    --accent: #2f6f4f;
+    --accent-soft: #e6f2ea;
+    --code-bg: #f6f8fa;
+    --code-bar-bg: #eef1f4;
+    --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    --max: 46rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --text: #e6e7ea;
+      --text-dim: #9aa0a8;
+      --border: #262a31;
+      --accent: #6fcf97;
+      --accent-soft: #16281f;
+      --code-bg: #0d1117;
+      --code-bar-bg: #161b22;
+    }
+    /* Shiki dual-theme: flip to the dark theme's variables. */
+    .astro-code,
+    .astro-code span {
+      color: var(--shiki-dark) !important;
+      background-color: var(--shiki-dark-bg) !important;
+      font-style: var(--shiki-dark-font-style) !important;
+      font-weight: var(--shiki-dark-font-weight) !important;
+      text-decoration: var(--shiki-dark-text-decoration) !important;
+    }
+  }
+  * {
+    box-sizing: border-box;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  a {
+    color: var(--accent);
+  }
+  code {
+    font-family: var(--mono);
+  }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.6rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(6px);
+    z-index: 10;
+  }
+  .topbar__brand {
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--text);
+  }
+  .topbar__nav {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .topbar__nav a {
+    text-decoration: none;
+    color: var(--text-dim);
+  }
+</style>

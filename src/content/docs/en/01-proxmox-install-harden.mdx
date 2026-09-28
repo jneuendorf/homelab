@@ -1,0 +1,151 @@
+---
+title: Installing & Hardening Proxmox
+description: Install Proxmox VE on a single node, then harden it — repos, static IP, SSH keys, email alerts, and a VLAN-aware bridge.
+order: 20
+phase: 0
+---
+
+# Installing & Hardening Proxmox
+
+This gets a single-node Proxmox VE host from bare metal to a hardened, alerting platform. Commands
+are marked with where they run — **(host)** = the Proxmox node shell, **(Mac)** = your workstation.
+
+> Throughout the series the example host IP is **`192.168.1.10`** and the router/gateway is
+> **`192.168.1.1`**. Substitute your own.
+
+## Install
+
+**Which ISO:** the standard **amd64** "Proxmox VE ISO Installer" (not the ARM64 build on the same
+page) for any x86-64 mini-PC.
+
+Two different drives are involved:
+
+- **USB installer stick:** ≥ 4 GB (the ISO is ~1.7 GB); 8 GB is comfortable. Flash with
+  balenaEtcher, Rufus, or `dd`.
+- **Install target (internal NVMe):** install onto the whole disk — the OS needs only a few GB but
+  the NVMe holds guests too.
+
+**Filesystem — decide before installing, it's not convertible in place.** With two NVMes present,
+install straight to a **ZFS RAID1 mirror** so the installer sets up boot redundancy on *both*
+disks automatically. (Details and the ZFS-vs-LVM reasoning: [ZFS storage on consumer SSDs](/en/02-zfs-storage).)
+
+### Host network (last installer screen)
+
+Give the host a **static IP outside your router's DHCP pool**:
+
+| Field | Value |
+|---|---|
+| Hostname (FQDN) | `pve.example.lan` |
+| IP address (CIDR) | `192.168.1.10/24` |
+| Gateway | `192.168.1.1` |
+| DNS server | `192.168.1.1` (later → a local resolver like Pi-hole) |
+
+→ Web UI at **`https://192.168.1.10:8006`**.
+
+### The post-install repo gotcha
+
+Disabling the PVE **enterprise** repo isn't enough — there's a **second** enterprise repo for
+**Ceph** (`ceph-squid`) that also fails `apt update` with a 401. A single node needs no Ceph, so
+disable it too: **Updates → Repositories → Ceph Squid Enterprise → Disable**. Then:
+
+```bash
+# (host)
+apt update && apt dist-upgrade
+```
+
+### Access gotchas (all normal)
+
+- **macOS Local Network privacy** — each app must be allowed to reach LAN devices, or you get
+  `No route to host`. Grant Terminal *and* your browser under **System Settings → Privacy &
+  Security → Local Network**. This is the usual cause of a "UI unreachable" scare — not Proxmox.
+- **Self-signed cert** → the browser warns "not private"; **Advanced → Proceed**. A proper cert is
+  a reverse-proxy job later.
+- **A static host's FQDN won't resolve** off a stock router's DHCP-DNS — use the IP, or add a
+  manual DNS entry.
+
+## Rename the node — only before adding guests
+
+The node name *is* the hostname, and Proxmox keys every guest config to it under
+`/etc/pve/nodes/<name>/`. With **zero guests** a rename is clean; once even one VM/LXC exists it
+means hand-moving configs. So rename now or keep the default `pve` forever:
+
+```bash
+# (host) — with no guests present
+hostnamectl set-hostname nucleus
+# then edit /etc/hosts to match the new name, and reboot
+```
+
+After reboot, remove the empty ghost node once the new one shows green (safe **only** because it
+holds no guests): `rm -rf /etc/pve/nodes/pve`.
+
+## SSH access with keys
+
+SSH into the host is the same root shell as the web UI's **`>_ Shell`**. Prefer key auth:
+
+```bash
+# (Mac) reuse your existing key if you have one; otherwise create one:
+ssh-keygen -t ed25519 -C "you@mac"
+# install the PUBLIC key on the host (asks for the root password once):
+ssh-copy-id root@192.168.1.10
+```
+
+Add a convenience alias in `~/.ssh/config`:
+
+```
+Host pve
+    HostName 192.168.1.10
+    User root
+```
+
+**Harden — only after key login works:**
+
+```bash
+# (host) edit /etc/ssh/sshd_config → PasswordAuthentication no, then:
+systemctl restart ssh
+```
+
+> Keep a web-UI **`>_ Shell`** tab open while testing SSH — the browser console logs in
+> independently of `sshd`, so it's your lockout safety net. Confirm a fresh `ssh` session works
+> *before* closing it.
+
+## Email alerts (SMTP)
+
+Fresh Proxmox tries to send via local Postfix with no relay, and home ISPs block port 25 — so mail
+silently fails. Add an **SMTP notification target** instead: **Datacenter → Notifications → Add →
+SMTP**. Using a typical mailbox provider:
+
+| Field | Value |
+|---|---|
+| Server / Port | `mail.gmx.net` / `587` (STARTTLS) |
+| Username | `you@gmx.de` |
+| From Address | `you@gmx.de` ← **must** equal the authenticated account |
+| Recipient | `you@gmx.de` |
+
+- **Enable external access in the mailbox first** (POP3/IMAP/SMTP), or the login is rejected.
+- Also set root's address: **Datacenter → Permissions → Users → `root@pam` → Edit → E-Mail**.
+- **Verify** with the target's **Test** button (check inbox *and* spam).
+
+> **Gotcha — `550 Sender address not allowed`:** the From Address wasn't the authenticated mailbox
+> (default is `root@pve…`). Providers only send *from* the account you logged in with.
+
+## Make the bridge VLAN-aware now
+
+Even if you can't segment yet, flip the bridge VLAN-aware at the start — it's free and saves a
+re-architecture later. **Node → System → Network → select `vmbr0` → Edit → tick VLAN aware → OK →
+Apply**. Assigning a service to a trust zone then becomes a dropdown instead of a rebuild.
+
+## Two guest types — pick well
+
+| | LXC container | Full VM |
+|---|---|---|
+| Overhead | Very low (shares host kernel) | Higher (own kernel) |
+| Isolation | Good | Complete |
+| Best for | One standalone Linux service | Docker host, other OS, hard isolation |
+| Run Docker inside? | Fiddly (permission quirks) | Clean, recommended |
+
+**Rule of thumb:** one well-resourced **VM as the Docker host** carries the containerized stack;
+use an **unprivileged LXC** for a standalone service that maps to one container — *especially* one
+that needs to read host ZFS directly (a VM can't bind-mount host datasets without NFS). That ZFS
+constraint is exactly why the [backup automation](/en/05-backup-automation-backrest) runs in an LXC.
+
+**Next:** [ZFS storage on consumer SSDs →](/en/02-zfs-storage)

@@ -1,0 +1,202 @@
+---
+title: A Verified 3-2-1 Backup
+description: The data model, the rsync + restic + ZFS snapshots tooling split, and how to actually prove a restore works before trusting it.
+order: 50
+phase: 2
+---
+
+import CodeSnippet from '../../../components/CodeSnippet.astro';
+
+# A Verified 3-2-1 Backup
+
+This is the heart of the build. The rule everyone repeats:
+
+> **3-2-1 — three copies, two media types, one off-site.** And never back up to the same physical
+> machine the guests run on.
+
+Two distinctions to internalise first, because conflating them is the classic mistake:
+
+- **Snapshots** = instant rollback on the *same disk*. Free, great before an upgrade — but they die
+  with the disk, so they are **not a backup**.
+- **Backups** = a full copy on *different* media. Survives disk death, fat-fingers, and ransomware.
+
+## The data model: one source of truth, backups radiate outward
+
+**Fresh data lands on the host, then flows outward — `host → on-site → off-site`, never inward.**
+
+| Tier | Where | Role | Protects against |
+|---|---|---|---|
+| **Source of truth** | Host **NVMe mirror** (ZFS) | where fresh data lives and is organized; redundant, self-healing, snapshotted | one disk dying · "oops" edits |
+| **Copy #2 — local** | **on-site SSD** (always plugged) | `restic` copy for fast local restore | host / pool death |
+| **Copy #3 — off-site** | **off-site SSD** (rotates out) | `restic` archive that leaves the house | fire · theft |
+
+Rules that fall out of it: new data is saved on the host *first* (never on a bare USB stick); you
+organize only on the host; a file's home is the host and backups only ever radiate outward. A single
+exFAT stick has no redundancy, checksums, or snapshots — so fresh data must never land there first.
+
+**The one exception is bulk media** (movies, music, games). It's often too big for a 1 TB mirror
+and barely compresses, so it stays on the on-site SSD — still streamable by bind-mounting that SSD
+read-only into a media-server guest. Only the *irreplaceable* data (photos, documents) lives on the
+mirror.
+
+## The tooling split — three tools, three jobs
+
+| Job | Tool |
+|---|---|
+| Ingest / 1:1 copy onto the mirror, browsable | **rsync** (`rsync -a --checksum`) |
+| Versioned, encrypted, verifiable backup repos (on/off-site, cloud) | **restic** |
+| Instant local undo + cheap replication | **ZFS snapshots** / `zfs send` |
+
+The distinction that matters: **rsync mirrors** (deletions and corruption propagate — no history,
+not a backup on its own), while **restic backs up** (point-in-time snapshots, dedup, encryption,
+self-verifying). Use rsync to *land* files on the host, restic for the *copies*.
+
+## Two drives, named by role
+
+Give the two USB SSDs role names — "A/B" tells you nothing six months later:
+
+- **On-site SSD** — always plugged into the host. Holds live media plus the local backups.
+- **Off-site SSD** — a `restic` archive of all bulk data that physically rotates out of the house.
+
+## Prepare the off-site drive
+
+The off-site drive leaves the house, so it must be safe to lose — and **`restic` encrypts
+everything it writes**, so a lost drive is unreadable without the repo password. That means **no
+LUKS needed**; just a plain ext4. Format it fresh (don't reuse NTFS/exFAT — Linux drivers are flaky
+and permissions don't survive):
+
+```bash
+# (host, root) — point DISK at the off-site SSD's WHOLE disk (e.g. /dev/sdb), NEVER a partition.
+# VERIFY it's the right drive first — its serial must match what you wrote down.
+DISK=/dev/sdX
+lsblk -dno NAME,SIZE,MODEL,SERIAL "$DISK"
+umount "${DISK}"* 2>/dev/null || true
+wipefs -a "$DISK"
+mkfs.ext4 -L ssd-offsite "$DISK"
+udevadm settle
+mkdir -p /mnt/ssd-offsite && mount /dev/disk/by-label/ssd-offsite /mnt/ssd-offsite
+restic init -r /mnt/ssd-offsite/restic     # prompts to set a password (twice)
+```
+
+> **Save the restic password in your password manager the moment you set it — never on the drive.**
+> restic has no recovery path; lose the password and the backup is permanently unreadable. Once the
+> drive is off-site, that password *is* its security.
+
+## Take the second copy before touching anything
+
+Get everything into the off-site repo *before* you reorganize — so a copy always exists at every
+step. Mount the on-site SSD **read-only** as belt-and-suspenders while it's still your only copy:
+
+```bash
+# (host, root)
+mkdir -p /mnt/ssd-onsite
+mount -o ro /dev/disk/by-label/ssd-onsite /mnt/ssd-onsite
+restic -r /mnt/ssd-offsite/restic backup /mnt/ssd-onsite
+```
+
+## Ingest to the mirror with rsync
+
+Create ZFS datasets for the irreplaceable data (each dataset gets its own snapshots and settings,
+and mounts itself — no `fstab`):
+
+```bash
+# (host, root) — rpool = the mirrored NVMe pool
+zfs create rpool/bulk
+zfs create rpool/bulk/docs
+zfs set compression=on rpool/bulk
+
+# copy docs in; --checksum = compare by content (safe re-runs); exclude macOS junk
+rsync -a --checksum --info=progress2 --exclude='._*' --exclude='.DS_Store' \
+      <SOURCE>/ /rpool/bulk/docs/
+```
+
+> **Don't rsync a photo library bundle raw.** An Apple `.photoslibrary` is an opaque bundle, and
+> with "Optimize Mac Storage" on, the full-res originals may not even be on disk. **Export originals
+> to plain files first** (e.g. `osxphotos export`, which also forces the iCloud downloads), then
+> ingest those — or let a photo app like Immich do the import. Docs can go straight over.
+
+## Automatic ZFS snapshots — the instant "oops" undo
+
+Snapshots are the undo layer on the source of truth. `sanoid` does policy-based auto-snapshot +
+auto-prune from one config file, and its Debian package auto-enables a 15-minute systemd timer:
+
+```bash
+# (host, root)
+apt install -y sanoid
+mkdir -p /etc/sanoid
+# then install the config:
+```
+
+<CodeSnippet file="config/sanoid.conf" title="config/sanoid.conf → /etc/sanoid/sanoid.conf" />
+
+(hourly 24 / daily 30 / monthly 3, recursive, auto-prune). The Phase 2 runner installs this for you — see [Automating backups](/en/05-backup-automation-backrest).
+
+Recovering is easy — every dataset exposes a hidden read-only `.zfs/snapshot/` directory:
+
+```bash
+# (host) restore ONE file, no rollback:
+cp /rpool/bulk/docs/.zfs/snapshot/<snap>/somefile /rpool/bulk/docs/
+# or roll the whole dataset back (discards changes since the snapshot):
+zfs rollback rpool/bulk/docs@<snap>
+```
+
+## Make the USB mounts survive a reboot
+
+So the drives come back automatically (and any backup container's bind-mounts aren't empty), mount
+them by **UUID** in `/etc/fstab` — UUID follows the filesystem across ports and `/dev/sdX`
+reshuffles:
+
+<CodeSnippet file="config/fstab.example" title="config/fstab.example" />
+
+The split that matters: the **on-site** drive uses `nofail` (auto-mounts when present, never blocks
+boot if absent); the **off-site** drive uses `noauto,nofail` (only mounts on demand when you dock
+it). Apply without rebooting: `systemctl daemon-reload && mount -a`.
+
+## Prove the restore — the only check that counts
+
+**Disk-usage numbers are not proof of a complete backup** — they count allocated blocks, not
+backed-up bytes (exFAT rounds every small file up to its cluster size, so `df`/`du` run far ahead of
+real file bytes). Trust a backup only after restic confirms it *and* a real restore works:
+
+```bash
+# (host, root)
+restic -r /mnt/ssd-offsite/restic snapshots            # 1. did a snapshot finalize?
+restic -r /mnt/ssd-offsite/restic stats latest         # 2. logical bytes restic stored
+du -sh --apparent-size /mnt/ssd-onsite                 # 3. should ≈ restic "Total Size"
+# 4. the real green light — restore a SMALL folder and open a file:
+restic -r /mnt/ssd-offsite/restic restore latest --target /tmp/restore-test \
+       --include '/mnt/ssd-onsite/<some-small-folder>/'
+#   → files open intact? then: rm -rf /tmp/restore-test
+```
+
+Then take the off-site drive **out of the house** — that's the real "1" in 3-2-1. Refresh it on a
+rotation: bring it home, run an incremental `restic backup`, verify, return it. (The
+[next page](/en/05-backup-automation-backrest) automates and monitors this.)
+
+### USB gotchas worth knowing
+
+Sustained writes to a USB SSD can be flaky — these are host-side, not restic problems:
+
+- **A drive dropping off the bus** under load (dmesg `config error`) flips ext4 read-only. Cause is
+  usually an underpowered front USB port or a hub. Fix: plug **directly into a rear USB4 port**, a
+  good cable, no hub.
+- **After a drop, `fsck` before remounting:** `fsck.ext4 -f /dev/sdX` (a partitionless backup drive
+  uses the whole-disk device). Exit 1 = errors corrected (normal); re-run until it exits 0. Then
+  resume `restic backup` — it reuses already-written data, nothing is corrupted (a snapshot only
+  finalizes at the end of a full run).
+- **Stale lock after a crash:** `restic -r … unlock` once you're sure nothing is running.
+- **Long jobs:** run them in `tmux` on the host so an SSH drop doesn't kill them.
+
+## Backing up the guests too
+
+The terabytes of files are one job; the guests (VMs/LXCs) are another. Since guests are rebuildable,
+you don't image whole disks — you export the small irreplaceable part through one clean contract.
+That's its own page: [Backing up guests](/en/06-guest-backups). For a one-click whole-guest safety
+shortcut, an occasional **`vzdump` → on-site SSD** is cheap (guests are small) and enables a fast
+full restore without rebuilding.
+
+**Keep your existing off-site copy (e.g. iCloud) until the new 3-2-1 is proven** — during a photo
+migration, that cloud copy *is* your off-site. Don't cancel it until data is in the new home *and* a
+restore is verified.
+
+**Next:** [Automating backups with Backrest →](/en/05-backup-automation-backrest)

@@ -1,0 +1,41 @@
+---
+title: Building a Proxmox Homelab
+description: A practical, opinionated walkthrough of a single-node Proxmox homelab — from hardware to a verified 3-2-1 backup.
+order: 0
+---
+
+# Building a Proxmox Homelab
+
+A practical, opinionated build log turned into a guide: how to take one small mini-PC and turn it
+into a resilient, self-hosting platform — with the reasoning behind each decision, not just the
+commands. Everything here runs on a **single node**; nothing assumes a rack, a cluster, or a NAS.
+
+The guiding principle throughout: **redundancy is not a backup, and a backup you haven't restored
+from isn't a backup yet.** Each phase builds the safety net before the thing it protects.
+
+## The series
+
+1. **[Choosing the hardware](/en/00-choosing-hardware)** — why storage-and-network-first beats chasing CPU, and the buy-checklist that avoids the common mini-PC traps.
+2. **[Installing & hardening Proxmox](/en/01-proxmox-install-harden)** — ISO, static IP, the repo gotcha, SSH keys, email alerts, and a VLAN-aware bridge.
+3. **[ZFS storage on consumer SSDs](/en/02-zfs-storage)** — ZFS vs LVM for a 2-disk mirror, and the wear mitigations that make consumer NVMe survivable.
+4. **[UPS & graceful shutdown](/en/03-ups-auto-shutdown)** — turning "hard crash mid-write" into "clean park in under two minutes" with `apcupsd`.
+5. **[A verified 3-2-1 backup](/en/04-backup-3-2-1)** — the data model, `rsync` + `restic` + ZFS snapshots, and how to actually prove a restore works.
+6. **[Automating backups with Backrest](/en/05-backup-automation-backrest)** — scheduling, retention, bit-rot checks, and failure email on top of restic.
+7. **[Backing up guests](/en/06-guest-backups)** — export the irreplaceable state through one clean contract, instead of imaging whole disks.
+
+New to the jargon? Start with the **[Glossary](/en/glossary)**.
+
+## The mental model
+
+Everything in the series serves one data-flow rule:
+
+> **Fresh data lands on the host, then flows outward: host → on-site → off-site. Never inward.**
+
+| Tier | Where | Protects against |
+|---|---|---|
+| **Source of truth** | Host NVMe mirror (ZFS, 2-disk) | one disk dying · "oops" edits (snapshots) |
+| **Copy #2 — local** | on-site SSD (always plugged) | host / pool death |
+| **Copy #3 — off-site** | off-site SSD (rotates out of the house) | fire · theft |
+
+The host is redundant and self-healing, so that's where you organize data. The backups radiate
+outward from it — you never tidy a backup, and fresh data never lands on a bare USB stick first.

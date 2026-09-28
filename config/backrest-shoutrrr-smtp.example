@@ -1,0 +1,13 @@
+# Backrest failure-notification hook — Shoutrrr URL for GMX SMTP (STARTTLS on :587).
+# Add as a repo-level hook with condition CONDITION_ANY_ERROR (covers backup + prune + check).
+#
+# Use an APP-SPECIFIC password, never your account login password:
+#   - percent-encode it once (browser console: encodeURIComponent("...")) — app passwords can
+#     contain # ? / that corrupt the URL and show as a bogus 535.
+#   - the username @ is written %40.
+#
+smtp://you%40gmx.de:<URL_ENCODED_APP_PASSWORD>@mail.gmx.net:587/?from=you@gmx.de&to=you@gmx.de&subject=Backrest+FAILED&auth=Plain&usestarttls=yes
+
+# Isolate SMTP auth from Backrest (run inside the backup CT), want "235 authentication succeeded":
+#   swaks --to you@gmx.de --from you@gmx.de --server mail.gmx.net:587 --tls --auth LOGIN --auth-user you@gmx.de
+#   235 = ok   ·   535 = wrong password (swaks sends exactly what you type → it's the credential)

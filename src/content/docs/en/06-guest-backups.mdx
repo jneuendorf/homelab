@@ -1,0 +1,115 @@
+---
+title: Backing Up Guests
+description: Export the irreplaceable state of every VM and container through one clean contract, instead of imaging whole disks.
+order: 70
+phase: 3
+---
+
+import CodeSnippet from '../../../components/CodeSnippet.astro';
+
+# Backing Up Guests
+
+Guests (VMs and LXCs) are **rebuildable** — you can reinstall the app from a recipe. So the goal
+isn't a perfect disk image; it's to save the small part you *can't* recreate, cleanly, and feed it
+into the **same restic pipeline** as the bulk data. No separate backup system.
+
+Three pieces make a guest safe:
+
+1. **The export** — the irreplaceable state (a database dump, a config), produced by the app's own
+   dumper so it's *consistent* (a hot copy of a live database can be caught half-written).
+2. **The rebuild recipe** — the compose file / setup notes, kept as documents in bulk data. Total
+   loss = reinstall from the recipe, then import the export. That's the real safety net.
+3. **An occasional `vzdump`** to the on-site SSD — a one-click whole-guest image for a *fast* full
+   restore without rebuilding. A convenience shortcut, not the safety net.
+
+## One contract, no per-guest branching
+
+The elegant part is a single **contract** every exportable guest honours, so the host needs to know
+nothing app-specific:
+
+| Rule | Requirement |
+|---|---|
+| **Path** | An executable at `/usr/local/sbin/guest-export` (the host probes this exact path) |
+| **Output** | The state as **one `tar` stream to stdout** — always tar, even for a single file |
+| **Consistency** | A clean dump (`pg_dump`, an app export), never a copy of live DB files |
+| **stderr** | Logs/progress go to stderr only — a stray `echo` to stdout corrupts the archive |
+| **Exit code** | `0` = success (non-empty stream); non-zero = failure |
+| **Self-contained** | Do the dump internally; assume **no** bind-mount |
+
+Why a single tar stream to stdout? A pipe carries **bytes only, no filenames** — so the host names
+the outer blob and stays oblivious to contents, while tar bundles many files *with their names
+inside*. That one design choice makes multi-file exports free, works over any transport, and needs
+no shared directory. It also keeps the guest read-isolated: no standing write path into the host's
+data, and it sidesteps the unprivileged-LXC UID shift entirely.
+
+A guest **without** the command is simply skipped — which is what makes the host sweep safe to run
+before anything is enrolled.
+
+## Transport is a function of guest *type*
+
+The host runs the export command inside each guest and captures stdout. Which mechanism is decided
+purely by type — never a per-guest config knob:
+
+| Guest type | Transport | Why |
+|---|---|---|
+| **LXC** | `pct exec <id> -- guest-export` | Hypervisor pipe: binary-clean, no network, keys, or agent |
+| **VM** | `ssh <name> guest-export` | Binary-clean stream over SSH (one-time: trust the host's pubkey in the VM) |
+
+Note you do **not** use `qm guest exec` for the payload — it wraps stdout in a base64 JSON envelope
+with a size cap, which mangles a binary dump. VMs stream over SSH, exactly as LXCs stream over
+`pct exec`.
+
+## The host sweep
+
+One script runs from cron on the host: it loops running guests, probes each for the contract
+command, captures the stream to a dated compressed file in the exports directory, and keeps the last
+N per guest. It exits non-zero if any export fails, so cron or a systemd `OnFailure=` raises the
+alert — and it skips guests without the command, so it's a safe no-op until you enrol one.
+
+<CodeSnippet file="scripts/phase3-services/guest-export-sweep.sh" start={20} end={32} title="guest-export-sweep.sh — the per-guest sweep" />
+
+That's the core loop; the full script maps guest type → transport (`pct exec` for LXCs, `ssh` for
+VMs) and prunes old exports. It runs as root on the host from cron — read it via the **Full file**
+link above.
+
+The exports land in `/rpool/bulk/guest-exports/`, which is already a Backrest source — so they get
+swept up with the bulk data automatically, no new tooling. Wire it up:
+
+```bash
+# (host)
+mkdir -p /rpool/bulk/guest-exports
+# deploy the script, then add a cron entry that mails on failure:
+```
+
+```cron
+# /etc/cron.d/guest-export-sweep — daily 03:30, mail on failure
+MAILTO=you@gmx.de
+30 3 * * *  root  /usr/local/sbin/guest-export-sweep.sh || echo "guest-export-sweep FAILED"
+```
+
+## Example exporter — a database-backed app
+
+Each app ships its *own* `guest-export` (it's the guest's file, not deployed by the host flow).
+Here's the multi-file case — a database dump *and* a config, both tar'd into one stream so their
+names ride inside:
+
+```bash
+#!/usr/bin/env bash
+# /usr/local/sbin/guest-export (inside the app's LXC). ONE tar stream → stdout; logs → stderr.
+set -euo pipefail
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+pg_dump -U myapp myapp > "$tmp/app.sql"                  # the irreplaceable metadata
+cp /opt/myapp/.env "$tmp/config.env" 2>/dev/null || true # small config (best-effort)
+tar -C "$tmp" -cf - .                                    # single stream; host captures & compresses
+```
+
+To restore: rebuild the guest from its recipe, then `zstd -dc <export>.tar.zst | tar -x` and
+`psql < app.sql`. The app's *bulk* files (a photo library, media) are backed up separately as bulk
+data on the host — remember to back up **both** the files and the database, or a restore gives you
+files with no organization.
+
+---
+
+That completes the storage-and-safety foundation: a redundant, snapshotted source of truth; a
+verified, automated, monitored 3-2-1; and a clean way to fold every future service into the same
+pipeline. Everything you build on top now has a safety net already watching it.

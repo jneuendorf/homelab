@@ -1,0 +1,128 @@
+---
+title: Automating Backups with Backrest
+description: Scheduling, retention, bit-rot checks, and failure email on top of restic — running in a dedicated unprivileged LXC.
+order: 60
+phase: 3
+---
+
+import CodeSnippet from '../../../components/CodeSnippet.astro';
+
+# Automating Backups with Backrest
+
+The [manual 3-2-1](/en/04-backup-3-2-1) works, but running it by hand doesn't scale and forgetting
+is easy. **Backrest** is a web UI + scheduler wrapped around restic — same repos, same on-disk
+format — adding cron scheduling, retention/prune policies, integrity checks, and failure
+notifications, without hand-rolled systemd timers. It ships as a single Go binary that bundles
+restic (no Docker).
+
+## Why a dedicated LXC
+
+Backrest needs to read the host's ZFS datasets. A Docker-host VM **can't bind-mount host ZFS**
+without NFS, so Backrest runs in its own **unprivileged LXC** with the data bind-mounted straight
+from the host. This is the canonical example of "use an LXC when the app needs host storage."
+
+## Stand up the container
+
+Two ways — pick one:
+
+**Option A — community helper-script (less to do).** One command on the host builds an unprivileged
+Debian CT *and* installs Backrest interactively. These run as root via `curl | bash`, so use only
+the official domain and skim the script first (or pin a specific commit instead of `main`):
+
+```bash
+# (host) — audit before running any curl|bash installer
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/backrest.sh)"
+```
+
+**Option B — manual (full control).** Create the CT, then install the binary:
+
+<CodeSnippet file="scripts/phase3-services/create-lxc.sh" title="create-lxc.sh" />
+
+`create-lxc.sh 110 backup` (unprivileged Debian, 1 core / 512 MB / 8 G).
+
+```bash
+# then inside it (pct enter 110):
+cd /tmp
+curl -fsSL -o backrest.tar.gz \
+  https://github.com/garethgeorge/backrest/releases/latest/download/backrest_Linux_x86_64.tar.gz
+tar xzf backrest.tar.gz && ./install.sh
+```
+
+> Set a **UI password** on first load, and don't expose port `9898` to the internet — it's behind
+> the LAN, and later a reverse proxy. Note the **CTID** the installer assigns; you need it next.
+
+## Bind-mount the data
+
+Sources read-only, the repo drive read-write. Run on the **host** (both drives must be mounted
+first):
+
+```bash
+# (host) — use the CTID from above
+pct set <CTID> -mp0 /rpool/bulk,mp=/rpool/bulk,ro=1          # the NVMe mirror (photos, docs)
+pct set <CTID> -mp1 /mnt/ssd-onsite,mp=/mnt/ssd-onsite,ro=1  # on-site SSD's media
+pct set <CTID> -mp2 /mnt/ssd-offsite,mp=/mnt/ssd-offsite     # off-site repo (read-write)
+```
+
+> **The UID shift — only the write target needs a fix.** In an unprivileged LXC, container root is
+> host uid 100000. The read-only sources are fine as-is (`/rpool/bulk` is world-readable; exFAT has
+> no Unix owners). The repo must be writable, and it's the backup container's *alone* — nothing else
+> writes it — so a plain `chown -R 100000:100000 /mnt/ssd-offsite/restic` on the host is enough. No
+> idmap needed (that only earns its keep for data you also touch from the host, like a photo app's
+> library).
+
+## Configure in the UI
+
+- **Set the Instance ID first** — it's demanded before anything else and **can't be changed later**
+  (it's stamped on every operation). Use a stable, role-based name like `homelab-backup`, not the
+  CTID or IP.
+- **Enable auth** (Settings → Users) with a strong password — the panel holds your repo password.
+  Ignore Pairing Tokens / Trusted Peers; those are for multi-instance peer sync you don't have.
+- **Add the repo** — Repo Name `ssd-offsite` (an immutable ID, not a path); Repository = the bare
+  path `/mnt/ssd-offsite/restic`; Password = the existing restic password from your password
+  manager (must match the `restic init`). Backrest opens the existing repo and imports your
+  snapshots — seeing them listed confirms path + password are right.
+- **Add a plan** (`bulk-offsite`) — Paths = `/rpool/bulk` **and** `/mnt/ssd-onsite`; Excludes
+  `**/._*`, `**/.DS_Store`, `**/.Trashes` (macOS sidecars — harmless noise, and the durable fix
+  since macOS keeps recreating them on exFAT); a retention policy (e.g. keep-daily 7 / weekly 4 /
+  monthly 6). **Schedule:** because the off-site drive rotates out, a daily cron would fail every
+  day it's away — leave the schedule **disabled and click Backup when you dock it**. (An everyday
+  *auto* schedule belongs to an always-plugged on-site repo.)
+- **Prune + integrity check live on the *repo*, not the plan.** Edit the `ssd-offsite` repo → a
+  Prune policy (~monthly) + a Check policy running `restic check` with **read-data 5–10%** to catch
+  silent bit-rot in the repo. These run whenever the drive is reachable.
+
+## Verify — once, before trusting the schedule
+
+Do the same green-light as the manual path, all in the UI:
+
+1. **Run it** — open the `bulk-offsite` plan → **Backup now**. The op should finish green; red means
+   the drive isn't docked or a path is missing.
+2. **Confirm the snapshot** — the finished op shows files/bytes added; the snapshot appears with a
+   timestamp and size.
+3. **Test-restore a small folder** — click the snapshot → file browser → drill into a *small* folder
+   → **Restore** to a scratch path like `/tmp/restore-test`.
+4. **Eyeball the files** on the host: `pct exec <CTID> -- ls -la /tmp/restore-test/…`, then clean up.
+
+> A backup you haven't restored from isn't a backup yet — this restore is the step that proves it.
+
+## Failure alerting — the smoke alarm
+
+Wire a **Shoutrrr** hook on the **repo** (repo-level covers backup + prune + check), condition
+**`CONDITION_ANY_ERROR`**, so a failed or aborted run tells you instead of silently not happening:
+
+<CodeSnippet file="config/backrest-shoutrrr-smtp.example" lang="bash" title="backrest-shoutrrr-smtp.example — a GMX SMTP example" />
+
+Two things worth knowing for any mailbox provider:
+
+- **Use an app-specific password, never your account login.** Activating app passwords typically
+  flips the account into "app-passwords only" for external clients, so existing mail apps lock out
+  until each gets its own — expected, not a bug.
+- **Percent-encode the password** in the URL (a stray `#`, `?`, or `/` corrupts the parse and shows
+  as a bogus `535`). To isolate auth from Backrest, test SMTP directly with `swaks` from inside the
+  CT — you want `235 authentication succeeded`.
+
+> **Next level:** email only catches *"a run failed."* A command-hook **dead-man's-switch** (a
+> success-ping to an uptime monitor) also catches *"a run never happened"* — worth adding once you
+> run a monitoring stack.
+
+**Next:** [Backing up guests →](/en/06-guest-backups)

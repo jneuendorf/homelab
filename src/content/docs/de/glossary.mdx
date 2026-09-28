@@ -1,0 +1,36 @@
+---
+title: Glossar
+description: Begriffe aus Homelab, Proxmox, ZFS und Backup, die in der Serie verwendet werden.
+order: 100
+---
+
+# Glossar
+
+| Begriff | Bedeutung |
+|---|---|
+| **Proxmox VE (PVE)** | Open-Source-Virtualisierungsplattform (KVM-VMs + LXC-Container) mit Web-UI. Das Betriebssystem des Homelabs. |
+| **LXC** | Leichtgewichtiger Linux-Container, der den Host-Kernel teilt. Geringer Overhead; ideal für einen einzelnen Dienst. |
+| **VM** | Vollständige virtuelle Maschine mit eigenem Kernel. Vollständige Isolation; das richtige Zuhause für einen Docker-Host. |
+| **unprivilegierter LXC** | Container, dessen Root auf einen unprivilegierten Host-Benutzer (uid 100000) abgebildet wird — ein Ausbruch besitzt nicht den Host. Der Standard. |
+| **Bind-Mount** | Ein Host-Verzeichnis/Dataset in einem LXC bereitstellen (`mp0`), damit die App direkt auf den Host-Speicher zugreift. |
+| **ZFS** | Copy-on-Write-Dateisystem mit Prüfsummen, Selbstheilung, Snapshots und eingebautem Mirroring. |
+| **Pool / vdev** | Ein ZFS-Pool besteht aus vdevs; ein **Mirror-vdev** aus 2 Disks ist das einfachste redundante Layout. |
+| **Dataset** | Ein aus einem Pool geschnittenes Dateisystem — wie ein Ordner, der sich wie eine eigene Partition verhält, mit eigener Kompression, Quota und Snapshots. |
+| **ashift** | ZFS-Sektorgrößen-Exponent; `12` = 4K-Sektoren, korrekt für moderne SSDs. |
+| **ARC** | ZFS' Lese-Cache im RAM. Nutzt freien Speicher; PVE deckelt ihn (~10 %), damit Gäste nicht ausgehungert werden. |
+| **Scrub** | ZFS liest jeden Block, prüft die Prüfsumme und repariert Abweichungen aus der Redundanz. Nur lesend; alle 1–2 Wochen ausführen. |
+| **Snapshot** | Sofortige, nahezu kostenlose eingefrorene Sicht auf ein Dataset. Eine *Undo*-Ebene — stirbt mit dem Pool, also **kein** Backup. |
+| **TRIM** | Teilt einer SSD mit, welche Blöcke frei sind, hält Schreiblatenz und Verschleiß niedrig. |
+| **Write Amplification** | Physisch geschriebene Bytes ÷ logische Bytes — der Consumer-SSD-Preis für ZFS' CoW + Prüfsummen. |
+| **SMART „Percentage Used"** | Ein NVMe-Verschleißindikator (% der spezifizierten Lebensdauer; kann 100 überschreiten). |
+| **TBW** | Terabytes Written — die spezifizierte Schreib-Lebensdauer einer Disk. |
+| **rsync** | Spiegelt Dateien 1:1. Schnell für den Import, aber Löschungen/Korruption pflanzen sich fort — allein **kein** Backup. |
+| **restic** | Verschlüsseltes, dedupliziertes, versioniertes Backup-Tool mit Selbstprüfung (`restic check`). |
+| **vzdump** | Proxmox' eingebautes Ganz-Gast-Backup (jedes Mal ein volles Archiv). |
+| **PBS** | Proxmox Backup Server — inkrementell-für-immer, dedupliziert, Einzeldatei-Wiederherstellung. |
+| **3-2-1** | 3 Kopien · 2 Medientypen · 1 außer Haus. Die maßgebliche Backup-Regel. |
+| **USV** | Unterbrechungsfreie Stromversorgung — Akku, der Aussetzer überbrückt und ein sauberes Herunterfahren auslöst. |
+| **line-interactive + AVR** | USV-Topologie, die unsaubere Netzspannung ausgleicht, ohne auf Akku zu wechseln. Das, was man fürs Homelab kauft. |
+| **apcupsd / NUT** | Daemons, die die USV über USB auslesen und das Herunterfahren auslösen. `apcupsd` ist am einfachsten für APC. |
+| **Shoutrrr** | Benachrichtigungs-Bibliothek (von Backrest genutzt), die Alarme über eine SMTP-/etc.-URL sendet. |
+| **DS-Lite / CGNAT** | ISP-Setup, das eine öffentliche IPv4 teilt — blockiert eingehendes Port-Forwarding, daher müssen VPNs *ausgehend* verbinden (z. B. Tailscale). |
