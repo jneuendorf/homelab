@@ -44,7 +44,7 @@ unprivileged LXC and installs Node + MagicMirror (under `/opt/magicmirror`).
 
 ## Deploy from this repo
 
-Sync the repo to the host, then push configs + modules into the LXC:
+Sync the repo to the host, then push modules + config into the LXC:
 
 ```bash
 # (Mac) — sync everything to the host
@@ -52,6 +52,17 @@ scripts/deploy.sh root@192.168.1.10
 
 # (host) — push wall-dashboard files into CT 101
 /opt/homelab/projects/wall-dashboard/install.sh 101
+```
+
+Module code is overwritten every deploy. **Config is per-host and never overwritten** — the repo
+ships sanitized placeholders, so `install.sh` pushes `config.js`/`custom.css` as `*.sample`. On the
+first deploy, copy a sample into place, then edit the live copy (your real tokens/IPs stay only on
+the host):
+
+```bash
+# (host) — one-time, per config file
+pct exec 101 -- cp /opt/magicmirror/config/config.js.sample /opt/magicmirror/config/config.js
+pct exec 101 -- cp /opt/magicmirror/config/custom.css.sample /opt/magicmirror/config/custom.css
 ```
 
 <CodeSnippet file="projects/wall-dashboard/install.sh" />

@@ -10,10 +10,16 @@ log(){ printf '\033[1;32m[+]\033[0m %s\n' "$*"; }
 [ "$(id -u)" -eq 0 ] || { echo "must run as root on the Proxmox host"; exit 1; }
 pct status "$container_id" | grep -q running || { echo "CT $container_id is not running"; exit 1; }
 
+# Config is per-host: the real tokens/IPs/names live only on the host, and the repo ships
+# sanitized placeholders. Never clobber the live config — push each file as <name>.sample.
+# First-time setup on the host: copy a sample into place, e.g.
+#   pct exec CTID -- cp /opt/magicmirror/config/config.js.sample /opt/magicmirror/config/config.js
+# then edit the live copy. Later deploys only refresh the .sample.
 for config_file in "$script_dir"/config/*; do
   [ -f "$config_file" ] || continue
-  pct push "$container_id" "$config_file" "$magicmirror_dir/config/$(basename "$config_file")"
-  log "config/$(basename "$config_file") → CT $container_id"
+  sample_name="$(basename "$config_file").sample"
+  pct push "$container_id" "$config_file" "$magicmirror_dir/config/$sample_name"
+  log "config/$(basename "$config_file") → CT $container_id (as $sample_name)"
 done
 
 for module_dir in "$script_dir"/modules/*/; do
