@@ -1,0 +1,97 @@
+/* THEMES — ONE variable drives everything.
+   Change --theme below: kids | night | contrast. Reload (no restart).
+   Groups activate via CSS style queries; tokens land on <body>. */
+:root { --theme: kids; }
+
+@container style(--theme: default) {
+  body {
+    --color-background: #000000;
+    --color-text:        #999999;
+    --color-text-dimmed: #666666;
+    --color-text-bright: #ffffff;
+    --accent:            #666666;
+    --accent-2:          #999999;
+    --font-primary:      "Roboto Condensed";
+    --font-display:      "Roboto Condensed";
+    --font-size:         20px;
+  }
+}
+@container style(--theme: kids) {
+  body {
+    --color-background: #10213f;
+    --color-text:        #f2f5ff;
+    --color-text-dimmed: #9fb3d0;
+    --color-text-bright: #ffffff;
+    --accent:            #ffcc33;
+    --accent-2:          #4fd1c5;
+    --font-primary:      "Roboto Condensed";
+    --font-display:      "Roboto Condensed";
+    --font-size:         28px;
+  }
+}
+@container style(--theme: night) {
+  body {
+    --color-background: #000000;
+    --color-text:        #b03a2e;
+    --color-text-dimmed: #5a1e18;
+    --color-text-bright: #e06a5a;
+    --accent:            #8a2b22;
+    --accent-2:          #8a2b22;
+    --font-primary:      "Roboto Condensed";
+    --font-display:      "Roboto Condensed";
+    --font-size:         24px;
+  }
+}
+@container style(--theme: contrast) {
+  body {
+    --color-background: #000000;
+    --color-text:        #ffffff;
+    --color-text-dimmed: #cccccc;
+    --color-text-bright: #ffff00;
+    --accent:            #00e5ff;
+    --accent-2:          #00e5ff;
+    --font-primary:      "Roboto Condensed";
+    --font-display:      "Roboto Condensed";
+    --font-size:         30px;
+  }
+}
+
+/* Base — reads the tokens (theme-independent) */
+body            { color: var(--color-text); background: var(--color-background);
+                  font-family: var(--font-primary), sans-serif; }
+.dimmed         { color: var(--color-text-dimmed); }
+.normal         { color: var(--color-text); }
+.bright         { color: var(--color-text-bright); }
+
+.module         { margin-bottom: 24px; }
+.module-header  { color: var(--accent); text-transform: uppercase;
+                  letter-spacing: 1px; opacity: .9; }
+
+.region.top.left     { top: 20px; left: 20px; }
+.region.top.right    { top: 20px; right: 20px; text-align: right; }
+.region.lower.third  { bottom: 8%; }
+
+.clock .time    { font-family: var(--font-display); font-size: 4rem;
+                  color: var(--color-text-bright); }
+.clock .date    { color: var(--accent-2); }
+
+.weather .weathericon   { color: var(--accent); }
+.weather .temperature,
+.weather .large         { font-size: 3.5rem; color: var(--color-text-bright); }
+.weather .feelslike     { color: var(--color-text-dimmed); }
+
+.calendar .event        { font-size: 1.4rem; }
+.calendar .title        { color: var(--color-text-bright); }
+.calendar .time,
+.calendar .symbol       { color: var(--accent-2); }
+.calendar table         { border-spacing: 0 4px; }
+.calendar .fa-futbol {
+  color: #000;
+  background-image: radial-gradient(circle, #fff .47em, transparent .48em);
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.compliments .thin      { color: var(--accent); }
+.newsfeed .newsfeed-title{ color: var(--color-text-bright); }
+.MMM-iFrame iframe      { border: 0; border-radius: 12px; }
