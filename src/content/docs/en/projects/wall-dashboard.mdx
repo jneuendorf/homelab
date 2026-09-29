@@ -1,0 +1,196 @@
+---
+title: Wall Dashboard (MagicMirror)
+description: An always-on info screen on a wall-mounted tablet — clock, weather, calendars, and custom widgets — running MagicMirror in an unprivileged LXC.
+order: 10
+---
+
+import CodeSnippet from '../../../../components/CodeSnippet.astro';
+
+# Wall Dashboard (MagicMirror)
+
+A **fixed, wall-mounted tablet** showing a kid-friendly info screen — weather, today's calendar,
+and freely configurable widgets, including custom-coded ones. Built on **MagicMirror²**, whose
+entire architecture is modular widgets, so adding, configuring, and writing your own is the normal
+workflow — not a hack.
+
+> **Prerequisites:** a working Proxmox host
+> ([Installing & Hardening Proxmox](/en/01-proxmox-install-harden)), and an understanding of the
+> [LXC-vs-VM decision](/en/01-proxmox-install-harden#two-guest-types--pick-well).
+
+## Why MagicMirror
+
+- **Everything is a module** placed into a **region** (`top_left`, `top_right`, `middle_center`,
+  `lower_third`, `bottom_bar`, …). Hundreds of community `MMM-*` modules exist (weather, iCal,
+  transit, photos, RSS). Composing the screen = listing modules in `config.js`.
+- **Custom widgets are first-class** — a folder in `modules/` with a frontend JS (`getDom()`), an
+  optional server-side `node_helper.js` (for API calls / secrets), and CSS.
+- **Display-first, not an app framework.** Touch works, but stateful interaction (e.g. a todo
+  list) is better delegated to a real app in an **iframe**.
+
+## Platform decision
+
+| Question | Answer | Why |
+|---|---|---|
+| Needs Docker? | **No** | Plain Node app; community-scripts installs it directly. |
+| Wants host bind-mount? | **No** | Calendar via network ICS, other apps via network iframe — no host ZFS data. |
+| Hard isolation / own kernel? | **No** | Internal, low-risk display app. |
+| **Result** | **unprivileged LXC** | Also a stronger default escape posture than a lone Docker container. |
+
+## Install (community-scripts LXC)
+
+Find MagicMirror on [community-scripts.org](https://community-scripts.org/scripts/magicmirror) →
+copy its `bash -c "$(curl -fsSL …)"` line → audit the script → run it **(host)**. It creates an
+unprivileged LXC and installs Node + MagicMirror (under `/opt/magicmirror`).
+
+## Deploy from this repo
+
+Sync the repo to the host, then push configs + modules into the LXC:
+
+```bash
+# (Mac) — sync everything to the host
+scripts/deploy.sh root@192.168.1.10
+
+# (host) — push wall-dashboard files into CT 101
+/opt/homelab/projects/wall-dashboard/install.sh 101
+```
+
+<CodeSnippet file="projects/wall-dashboard/install.sh" />
+
+## Config — regions + widgets
+
+`/opt/magicmirror/config/config.js` inside the LXC. `serveronly` mode binds localhost by default —
+open it up for the LAN so the tablet can connect. Replace `YOUR_TOKEN_1` / `YOUR_TOKEN_2` with
+your real iCloud calendar tokens.
+
+<CodeSnippet file="projects/wall-dashboard/config/config.js" />
+
+## iCloud calendar — read-only ICS
+
+The `calendar` module needs a **public ICS URL** per calendar. Three cases:
+
+- **Your own iCloud calendar** → publish it: **Mac Calendar** → right-click the calendar → **Share
+  Calendar** → tick **Public Calendar** → copy the link (a published iCloud calendar URL).
+  Read-only, auto-refreshing, no auth.
+- **A calendar you subscribed to** → you already have the source URL: **Mac Calendar** → select
+  it → **Edit** (or File → Get Info) shows the subscription URL.
+- **A calendar shared with you via iCloud** (not subscribed) → it has no public ICS unless the
+  owner publishes one — ask them to do the "Public Calendar" step and send the link.
+
+Notes:
+
+- Use the **`https://`** form (the module doesn't handle the webcal scheme).
+- **Per-calendar colors** — give each entry a `color` (+ optional Font-Awesome `symbol`) and set
+  module-level `coloredText: true` / `coloredSymbol: true`.
+- **Unpublish → republish** rotates a leaked calendar token.
+
+## Theming
+
+MagicMirror has **no theme engine** — theming is plain CSS cascade. `css/main.css` defines
+everything via `:root` CSS variables; overrides go in **`config/custom.css`**, which loads last.
+Activate it once: `cp config/custom.css.sample config/custom.css`. **CSS is client-side — edit and
+reload the browser, no `systemctl restart`** (only `config.js` changes need a restart).
+
+Set `--theme` at the top of `custom.css`. Change one line — reload — done.
+
+<CodeSnippet file="projects/wall-dashboard/config/custom.css" />
+
+> Style queries need a 2023+ browser engine (Chrome 111+, Safari 18+). On an older engine, fall
+> back to `:root[data-theme="night"] { … }` and set `data-theme` on the `<html>` tag.
+
+## Custom widgets
+
+A module is a folder in `modules/MMM-*/` with a frontend JS (`getDom()`), an optional server-side
+`node_helper.js`, and CSS. That's the whole loop: `getDom` draws, `node_helper` fetches, socket
+notifications carry data between them.
+
+### MMM-DayParts
+
+Three labelled day-parts — Morgen / Mittag / Abend — with temperature + weather emoji from
+Open-Meteo (no API key). The stock `weather` module only does "now" or a rolling hourly list;
+this picks fixed hours.
+
+<CodeSnippet file="projects/wall-dashboard/modules/MMM-DayParts/MMM-DayParts.js" />
+<CodeSnippet file="projects/wall-dashboard/modules/MMM-DayParts/node_helper.js" />
+<CodeSnippet file="projects/wall-dashboard/modules/MMM-DayParts/MMM-DayParts.css" />
+
+Self-check (run from the repo root — no MagicMirror needed):
+
+```bash
+node projects/wall-dashboard/modules/MMM-DayParts/MMM-DayParts.test.cjs
+```
+
+### MMM-Routine
+
+Per-kid morning checklist at the bottom of the screen. Tap to check off; resets every midnight
+(date-keyed `localStorage`). First to finish gets 🏆, beating the deadline earns ✨.
+Purely client-side — no `node_helper`.
+
+Each child's `items` is either a **fixed array** or a **callback** `(ctx) => items` that builds
+today's list from context — day of week, time, today's calendar events, and the weather DayParts
+already fetched (broadcast as a `DAYPARTS_WEATHER` notification). The `RoutineCtx` shape is a JSDoc
+typedef at the top of the module, so editors autocomplete it with `// @ts-check` — no build step,
+config stays plain JS. Done-state is keyed by item **label** (not index), so a callback can add or
+drop items on re-render without scrambling the checkmarks — keep labels unique per child.
+
+The reward emojis are configurable too, via a module-level `badges` key — an object (or `(ctx) =>
+object`, same pattern as `items`) with `leader` / `done` / `beatDeadline`. Missing keys keep their
+defaults (🏆 / ⭐ / ✨), so let the kids pick their own from
+[emojis.wiki/success](https://emojis.wiki/success/):
+
+```javascript
+badges: { leader: "🥇", done: "😎", beatDeadline: "⚡" }
+```
+
+```javascript
+{
+  name: "Kind 1", color: "#2ecc71",
+  // fixed list still works — or return one dynamically:
+  items: (ctx) => {
+    // this child's events: calendar color === child color (see the calendars config above)
+    const mine = ctx.calendar.filter((e) => e.color === ctx.color);
+    return [
+      { icon: "🛏️", label: "Umziehen" },
+      { icon: "🥐", label: "Frühstück" },
+      { icon: "🪥", label: "Zähne" },
+      // Tuesday = Sport → pack the gym bag
+      ...(ctx.dayOfWeek === 2 ? [{ icon: "🎽", label: "Sportzeug" }] : []),
+      // cold morning → jacket
+      ...((ctx.weather?.[0]?.temp ?? 20) < 8 ? [{ icon: "🧥", label: "Jacke" }] : []),
+      // school trip on this child's calendar today
+      ...(mine.some((e) => /ausflug/i.test(e.title)) ? [{ icon: "🎒", label: "Rucksack" }] : []),
+    ];
+  },
+}
+```
+
+<CodeSnippet file="projects/wall-dashboard/modules/MMM-Routine/MMM-Routine.js" />
+<CodeSnippet file="projects/wall-dashboard/modules/MMM-Routine/MMM-Routine.css" />
+
+Self-check:
+
+```bash
+node projects/wall-dashboard/modules/MMM-Routine/MMM-Routine.test.cjs
+```
+
+## Embedding other apps (iframe)
+
+**[MMM-iFrame](https://github.com/alberttwong/MMM-iFrame)** drops any URL in as a tile — a todo
+app, a Grafana panel, Home Assistant. The embedded app must **allow being framed**: apps that send
+`X-Frame-Options: DENY` or `frame-ancestors 'none'` refuse to load. Since these are your own
+containers, you control it — configure the app to allow framing, or relax the header at a reverse
+proxy.
+
+```javascript
+{
+  module: "MMM-iFrame", position: "lower_third",
+  config: { url: ["http://192.168.1.30:2021/"], width: "100%", height: "420" },
+}
+```
+
+## Tablet kiosk
+
+- **iPad:** open the URL in Safari → **Guided Access** to lock it fullscreen; Settings → Display →
+  **Auto-Lock: Never**; keep on charger.
+- **Android:** **Fully Kiosk Browser** (or Fullscreen Immersive) pointed at the URL; disable
+  screen timeout.
+- Point at the reverse-proxy HTTPS name once that's up, else `http://<lxc-ip>:8080`.
