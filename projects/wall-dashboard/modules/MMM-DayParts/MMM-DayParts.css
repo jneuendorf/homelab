@@ -1,0 +1,9 @@
+.dayparts .daypart-row {
+  display: grid;
+  grid-template-columns: 4.5em 1.6em auto;
+  gap: .4em;
+  align-items: baseline;
+}
+.daypart-label { color: var(--color-text-dimmed); }
+.daypart-icon  { text-align: center; }
+.daypart-temp  { color: var(--color-text-bright); font-weight: bold; }
