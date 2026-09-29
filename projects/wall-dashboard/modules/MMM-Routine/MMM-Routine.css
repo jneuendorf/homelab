@@ -1,0 +1,46 @@
+.routine {
+  display: flex; flex-direction: column; align-items: center;
+  gap: .45em; width: 100%; font-size: 1.3em;
+}
+
+.routine-row {
+  display: flex; align-items: center; justify-content: center; gap: .7em;
+  width: min(940px, 96vw);
+  border-top: 2px solid var(--child);
+  padding-top: .3em; transition: opacity .3s;
+}
+.routine-row.done { opacity: .9; }
+
+.routine-label { display: flex; flex-direction: column; align-items: flex-start; min-width: 3.4em; }
+.routine-name { color: var(--child); font-weight: bold; font-size: 1.2em; line-height: 1.05; }
+.routine-progress { color: var(--color-text-dimmed); font-size: .8em; }
+.routine-badge { font-size: 1.5em; margin-left: .35em; min-width: 2.4em; text-align: center; }
+
+.routine-items { display: flex; flex-wrap: wrap; gap: .55em; }
+.routine-item {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: .15em;
+  min-width: 5em; padding: .35em .7em;
+  border: 2px solid var(--color-text-dimmed); border-radius: .7em;
+  background: transparent; color: var(--color-text);
+  font-family: inherit; cursor: pointer;
+  transition: transform .12s, background .2s, border-color .2s;
+}
+.routine-item .ri-icon { font-size: 2.2em; line-height: 1; white-space: nowrap; }
+.routine-item .ri-label { font-size: .9em; }
+.routine-item:active { transform: scale(.92); }
+
+.routine-item.checked {
+  border-color: var(--child);
+  background: color-mix(in srgb, var(--child) 22%, transparent);
+  animation: ri-pop .3s ease;
+}
+.routine-item.checked .ri-label { text-decoration: line-through; opacity: .6; }
+.routine-item.checked::before {
+  content: "✓"; position: absolute; top: -.55em; right: -.35em;
+  width: 1.3em; height: 1.3em; line-height: 1.3em; text-align: center;
+  border-radius: 50%; background: var(--child); color: #fff; font-size: .85em; font-weight: bold;
+}
+@keyframes ri-pop { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
+
+.routine-deadline { margin-top: .2em; color: var(--color-text-dimmed); font-size: .95em; }
