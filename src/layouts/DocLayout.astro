@@ -11,9 +11,12 @@ interface Props {
   slug?: string;
   /** false when the page is showing default-locale content as a fallback. */
   translated?: boolean;
+  /** headings of the current page (from Astro's render()), for the in-page TOC. */
+  headings?: { depth: number; slug: string; text: string }[];
 }
-const { title, description, locale, slug, translated = true } = Astro.props;
+const { title, description, locale, slug, translated = true, headings = [] } = Astro.props;
 const { guide, projects } = await getNav(locale);
+const sectionHeadings = headings.filter((h) => h.depth === 2);
 ---
 
 <BaseLayout title={title} description={description} locale={locale} slug={slug}>
@@ -50,6 +53,15 @@ const { guide, projects } = await getNav(locale);
                     >
                       {item.title}
                     </a>
+                    {item.slug === slug && sectionHeadings.length > 0 && (
+                      <ul class="sidebar__toc">
+                        {sectionHeadings.map((heading) => (
+                          <li>
+                            <a href={`#${heading.slug}`}>{heading.text}</a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </li>
                 ))
               }
@@ -127,6 +139,20 @@ const { guide, projects } = await getNav(locale);
     .sidebar__label--projects {
       margin-top: 1.25rem;
     }
+    .sidebar ul.sidebar__toc {
+      margin: 0.15rem 0 0.4rem 0.6rem;
+      padding-left: 0.5rem;
+      border-left: 1px solid var(--border);
+    }
+    .sidebar__toc a {
+      font-size: 0.82rem;
+      padding: 0.2rem 0.5rem;
+    }
+    /* scrolled-to section: lighter than the active project (accent text, no background) */
+    .sidebar__toc a[data-active] {
+      color: var(--accent);
+      font-weight: 500;
+    }
     .fallback {
       margin: 0 0 1.5rem;
       padding: 0.6rem 0.9rem;
@@ -196,4 +222,36 @@ const { guide, projects } = await getNav(locale);
       }
     }
   </style>
+
+  <script>
+    // Scroll-spy: highlight the sidebar TOC link for the section currently near the top.
+    const links = new Map<string, HTMLAnchorElement>();
+    document.querySelectorAll<HTMLAnchorElement>('.sidebar__toc a').forEach((a) => {
+      links.set(decodeURIComponent(a.hash.slice(1)), a);
+    });
+    const headings = [...links.keys()]
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
+    if (headings.length) {
+      const visible = new Set<string>();
+      let active: string | null = null;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) visible.add(entry.target.id);
+            else visible.delete(entry.target.id);
+          }
+          // first heading (document order) still in the top band; else keep the last
+          const current = headings.find((h) => visible.has(h.id))?.id;
+          if (current && current !== active) {
+            if (active) links.get(active)?.removeAttribute('data-active');
+            links.get(current)?.setAttribute('data-active', '');
+            active = current;
+          }
+        },
+        { rootMargin: '0px 0px -80% 0px' },
+      );
+      headings.forEach((h) => observer.observe(h));
+    }
+  </script>
 </BaseLayout>

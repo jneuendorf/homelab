@@ -32,7 +32,7 @@ for (const variants of bySlug.values()) {
   for (const v of variants.values()) if (v.id === entryId) entry = v;
 }
 if (!entry) throw new Error(`Entry not found: ${entryId}`);
-const { Content } = await render(entry);
+const { Content, headings } = await render(entry);
 ---
 
 <DocLayout
@@ -41,6 +41,7 @@ const { Content } = await render(entry);
   locale={lang}
   slug={slug}
   translated={translated}
+  headings={headings}
 >
   <Content />
 </DocLayout>
