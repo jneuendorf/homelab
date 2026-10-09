@@ -6,9 +6,9 @@ alias start := dev
 build:
     npm run build
 
-# astro check does typechecking too; format/lint aren't set up in this project
+# prettier (+ prettier-plugin-astro) formats everything incl. .astro/.mdx
 format:
-    npx prettier --write .
+    npm run format
 
 check:
     npx astro check
