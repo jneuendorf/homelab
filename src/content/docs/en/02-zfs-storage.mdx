@@ -18,29 +18,29 @@ and the mitigations that make consumer NVMe survive it comfortably.
 For light services the workload barely touches the filesystem — so the choice is driven by how
 many disks you have:
 
-- **Single disk** → ZFS's headline feature (self-healing) *can't apply*, yet you still pay its RAM
+- **Single disk** → ZFS's headline feature (self-healing) _can't apply_, yet you still pay its RAM
   and write-amplification cost. **LVM-Thin** is the lighter, pragmatic pick.
 - **2-disk mirror** → ZFS earns its keep: self-healing, snapshots, `zfs send` replication.
 
-| Factor | ZFS | LVM-Thin |
-|---|---|---|
-| Checksums / bit-rot detection | ✅ | ❌ |
-| Self-healing (needs redundancy) | ✅ | ❌ |
-| Snapshots | ✅ instant, CoW | ✅ thin |
-| Replication (`send`/`recv`) | ✅ | ❌ |
-| Transparent compression | ✅ lz4, ~free | ❌ |
-| Software mirror | ✅ built-in | ❌ (needs mdraid) |
-| RAM cost (ARC) | Higher | Low |
-| SSD write amplification | Higher | Lower |
+| Factor                          | ZFS             | LVM-Thin          |
+| ------------------------------- | --------------- | ----------------- |
+| Checksums / bit-rot detection   | ✅              | ❌                |
+| Self-healing (needs redundancy) | ✅              | ❌                |
+| Snapshots                       | ✅ instant, CoW | ✅ thin           |
+| Replication (`send`/`recv`)     | ✅              | ❌                |
+| Transparent compression         | ✅ lz4, ~free   | ❌                |
+| Software mirror                 | ✅ built-in     | ❌ (needs mdraid) |
+| RAM cost (ARC)                  | Higher          | Low               |
+| SSD write amplification         | Higher          | Lower             |
 
 > ZFS ↔ ext4/LVM is **not** convertible in place — decide before installing. (ZFS single-disk →
-> mirror *is* possible later via `zpool attach`, but boot redundancy then needs manual setup, so
+> mirror _is_ possible later via `zpool attach`, but boot redundancy then needs manual setup, so
 > installing straight to a mirror is cleaner.)
 
 **The honest verdict for a 2-disk light box: ZFS wins** — every high-relevance factor favors it
-*except* consumer-SSD endurance. The wear scenarios where the caution camp is right (heavy database
+_except_ consumer-SSD endurance. The wear scenarios where the caution camp is right (heavy database
 sync writes, whole-disk encryption, ZFS-on-ZFS nesting) aren't in a typical self-hosting stack. If
-you *were* running heavy databases on consumer drives, the answer would flip to LVM.
+you _were_ running heavy databases on consumer drives, the answer would flip to LVM.
 
 ## The wear mitigations (do all of these)
 
@@ -48,15 +48,20 @@ Much of the "ZFS killed my SSD" lore is really **Proxmox itself** — HA/cluster
 guest logging writing constantly — which hits ext4/LVM too. Apply these once and consumer NVMe is
 fine for a light load. They're all in one idempotent script that also doubles as a verifier:
 
-<CodeSnippet file="scripts/phase1-harden/storage-harden.sh" start={20} end={27} title="storage-harden.sh — atime + TRIM (steps 2–3)" />
+<CodeSnippet
+  file="scripts/phase1-harden/storage-harden.sh"
+  start={20}
+  end={27}
+  title="storage-harden.sh — atime + TRIM (steps 2–3)"
+/>
 
 Run the whole idempotent script (all six mitigations) as root on the host — it doubles as a verifier, so re-run it anytime: `storage-harden.sh rpool`. Use the **Full file** link above to read every step.
 
 What it does, and why:
 
-1. **Compression `lz4`** — near-free, often *raises* throughput, and fewer physical bytes = less
+1. **Compression `lz4`** — near-free, often _raises_ throughput, and fewer physical bytes = less
    wear. (Proxmox's default `on` is already lz4.)
-2. **`atime=off`** — by default every file *read* also writes an access-time stamp; on copy-on-write
+2. **`atime=off`** — by default every file _read_ also writes an access-time stamp; on copy-on-write
    ZFS that write allocates new blocks. Nothing in a typical stack reads `atime`, so turning it off
    is a free win. (`relatime` still writes up to once/file/day — a daily library scan becomes a
    burst of metadata writes, so `atime=off` is stricter and better here.)
@@ -66,7 +71,7 @@ What it does, and why:
    writing status into the cluster filesystem. With no cluster they do nothing but wear the SSD.
    (`corosync` is already inactive on a standalone node.) Re-enable them only if you ever cluster.
 5. **Weekly scrub via the systemd timer** — a scrub reads every block, verifies checksums, and
-   repairs mismatches *while the pool is still redundant*, so a later disk failure rebuilds from
+   repairs mismatches _while the pool is still redundant_, so a later disk failure rebuilds from
    clean data. Scrubs are read-only (no wear) and cheap on a ~1 TB mirror, so weekly is free and
    strictly safer than the packaged monthly cron (which the script comments out to avoid doubling).
 6. **Install `smartmontools`** and report each NVMe's **`Percentage Used`** wear indicator.

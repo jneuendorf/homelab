@@ -29,12 +29,12 @@ workflow — not a hack.
 
 ## Platform decision
 
-| Question | Answer | Why |
-|---|---|---|
-| Needs Docker? | **No** | Plain Node app; community-scripts installs it directly. |
-| Wants host bind-mount? | **No** | Calendar via network ICS, other apps via network iframe — no host ZFS data. |
-| Hard isolation / own kernel? | **No** | Internal, low-risk display app. |
-| **Result** | **unprivileged LXC** | Also a stronger default escape posture than a lone Docker container. |
+| Question                     | Answer               | Why                                                                         |
+| ---------------------------- | -------------------- | --------------------------------------------------------------------------- |
+| Needs Docker?                | **No**               | Plain Node app; community-scripts installs it directly.                     |
+| Wants host bind-mount?       | **No**               | Calendar via network ICS, other apps via network iframe — no host ZFS data. |
+| Hard isolation / own kernel? | **No**               | Internal, low-risk display app.                                             |
+| **Result**                   | **unprivileged LXC** | Also a stronger default escape posture than a lone Docker container.        |
 
 ## Install (community-scripts LXC)
 

@@ -32,11 +32,11 @@ Alles in der Serie dient einer Datenfluss-Regel:
 
 > **Frische Daten landen auf dem Host und fließen dann nach außen: Host → vor Ort → außer Haus. Niemals nach innen.**
 
-| Ebene | Wo | Schützt gegen |
-|---|---|---|
-| **Quelle der Wahrheit** | Host-NVMe-Mirror (ZFS, 2 Disks) | Ausfall einer Disk · „Ups"-Änderungen (Snapshots) |
-| **Kopie #2 — lokal** | Vor-Ort-SSD (immer eingesteckt) | Tod von Host / Pool |
-| **Kopie #3 — außer Haus** | Außer-Haus-SSD (rotiert aus dem Haus) | Feuer · Diebstahl |
+| Ebene                     | Wo                                    | Schützt gegen                                     |
+| ------------------------- | ------------------------------------- | ------------------------------------------------- |
+| **Quelle der Wahrheit**   | Host-NVMe-Mirror (ZFS, 2 Disks)       | Ausfall einer Disk · „Ups"-Änderungen (Snapshots) |
+| **Kopie #2 — lokal**      | Vor-Ort-SSD (immer eingesteckt)       | Tod von Host / Pool                               |
+| **Kopie #3 — außer Haus** | Außer-Haus-SSD (rotiert aus dem Haus) | Feuer · Diebstahl                                 |
 
 Der Host ist redundant und selbstheilend — dort organisiert man die Daten. Die Backups strahlen von
 ihm nach außen: ein Backup räumt man nie auf, und frische Daten landen nie zuerst auf einem nackten

@@ -26,19 +26,19 @@ Two different drives are involved:
   the NVMe holds guests too.
 
 **Filesystem — decide before installing, it's not convertible in place.** With two NVMes present,
-install straight to a **ZFS RAID1 mirror** so the installer sets up boot redundancy on *both*
+install straight to a **ZFS RAID1 mirror** so the installer sets up boot redundancy on _both_
 disks automatically. (Details and the ZFS-vs-LVM reasoning: [ZFS storage on consumer SSDs](/en/02-zfs-storage).)
 
 ### Host network (last installer screen)
 
 Give the host a **static IP outside your router's DHCP pool**:
 
-| Field | Value |
-|---|---|
-| Hostname (FQDN) | `pve.example.lan` |
-| IP address (CIDR) | `192.168.1.10/24` |
-| Gateway | `192.168.1.1` |
-| DNS server | `192.168.1.1` (later → a local resolver like Pi-hole) |
+| Field             | Value                                                 |
+| ----------------- | ----------------------------------------------------- |
+| Hostname (FQDN)   | `pve.example.lan`                                     |
+| IP address (CIDR) | `192.168.1.10/24`                                     |
+| Gateway           | `192.168.1.1`                                         |
+| DNS server        | `192.168.1.1` (later → a local resolver like Pi-hole) |
 
 → Web UI at **`https://192.168.1.10:8006`**.
 
@@ -56,7 +56,7 @@ apt update && apt dist-upgrade
 ### Access gotchas (all normal)
 
 - **macOS Local Network privacy** — each app must be allowed to reach LAN devices, or you get
-  `No route to host`. Grant Terminal *and* your browser under **System Settings → Privacy &
+  `No route to host`. Grant Terminal _and_ your browser under **System Settings → Privacy &
   Security → Local Network**. This is the usual cause of a "UI unreachable" scare — not Proxmox.
 - **Self-signed cert** → the browser warns "not private"; **Advanced → Proceed**. A proper cert is
   a reverse-proxy job later.
@@ -65,7 +65,7 @@ apt update && apt dist-upgrade
 
 ## Rename the node — only before adding guests
 
-The node name *is* the hostname, and Proxmox keys every guest config to it under
+The node name _is_ the hostname, and Proxmox keys every guest config to it under
 `/etc/pve/nodes/<name>/`. With **zero guests** a rename is clean; once even one VM/LXC exists it
 means hand-moving configs. So rename now or keep the default `pve` forever:
 
@@ -106,7 +106,7 @@ systemctl restart ssh
 
 > Keep a web-UI **`>_ Shell`** tab open while testing SSH — the browser console logs in
 > independently of `sshd`, so it's your lockout safety net. Confirm a fresh `ssh` session works
-> *before* closing it.
+> _before_ closing it.
 
 ## Email alerts (SMTP)
 
@@ -114,19 +114,19 @@ Fresh Proxmox tries to send via local Postfix with no relay, and home ISPs block
 silently fails. Add an **SMTP notification target** instead: **Datacenter → Notifications → Add →
 SMTP**. Using a typical mailbox provider:
 
-| Field | Value |
-|---|---|
-| Server / Port | `mail.gmx.net` / `587` (STARTTLS) |
-| Username | `you@gmx.de` |
-| From Address | `you@gmx.de` ← **must** equal the authenticated account |
-| Recipient | `you@gmx.de` |
+| Field         | Value                                                   |
+| ------------- | ------------------------------------------------------- |
+| Server / Port | `mail.gmx.net` / `587` (STARTTLS)                       |
+| Username      | `you@gmx.de`                                            |
+| From Address  | `you@gmx.de` ← **must** equal the authenticated account |
+| Recipient     | `you@gmx.de`                                            |
 
 - **Enable external access in the mailbox first** (POP3/IMAP/SMTP), or the login is rejected.
 - Also set root's address: **Datacenter → Permissions → Users → `root@pam` → Edit → E-Mail**.
-- **Verify** with the target's **Test** button (check inbox *and* spam).
+- **Verify** with the target's **Test** button (check inbox _and_ spam).
 
 > **Gotcha — `550 Sender address not allowed`:** the From Address wasn't the authenticated mailbox
-> (default is `root@pve…`). Providers only send *from* the account you logged in with.
+> (default is `root@pve…`). Providers only send _from_ the account you logged in with.
 
 ## Make the bridge VLAN-aware now
 
@@ -136,15 +136,15 @@ Apply**. Assigning a service to a trust zone then becomes a dropdown instead of 
 
 ## Two guest types — pick well
 
-| | LXC container | Full VM |
-|---|---|---|
-| Overhead | Very low (shares host kernel) | Higher (own kernel) |
-| Isolation | Good | Complete |
-| Best for | One standalone Linux service | Docker host, other OS, hard isolation |
-| Run Docker inside? | Fiddly (permission quirks) | Clean, recommended |
+|                    | LXC container                 | Full VM                               |
+| ------------------ | ----------------------------- | ------------------------------------- |
+| Overhead           | Very low (shares host kernel) | Higher (own kernel)                   |
+| Isolation          | Good                          | Complete                              |
+| Best for           | One standalone Linux service  | Docker host, other OS, hard isolation |
+| Run Docker inside? | Fiddly (permission quirks)    | Clean, recommended                    |
 
 **Rule of thumb:** one well-resourced **VM as the Docker host** carries the containerized stack;
-use an **unprivileged LXC** for a standalone service that maps to one container — *especially* one
+use an **unprivileged LXC** for a standalone service that maps to one container — _especially_ one
 that needs to read host ZFS directly (a VM can't bind-mount host datasets without NFS). That ZFS
 constraint is exactly why the [backup automation](/en/05-backup-automation-backrest) runs in an LXC.
 

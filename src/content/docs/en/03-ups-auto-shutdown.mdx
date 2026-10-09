@@ -23,14 +23,14 @@ For a homelab the checklist is short — and one spec is the one people skip:
 
 - [ ] **Line-interactive** topology (not standby/offline, not online double-conversion)
 - [ ] **AVR** (automatic voltage regulation)
-- [ ] **A USB *data* port** — the part that enables auto-shutdown. Some units list USB as a
-      *charging* output only; that's useless here. Confirm a USB-B / HID data interface.
+- [ ] **A USB _data_ port** — the part that enables auto-shutdown. Some units list USB as a
+      _charging_ output only; that's useless here. Confirm a USB-B / HID data interface.
 - [ ] **NUT- or apcupsd-compatible** (APC and CyberPower both are)
 - [ ] **~500–650 VA / ~300–400 W** — you'll sit at ~5% load; bigger is wasted money
 - [ ] **Replaceable, standard battery** (it's a consumable)
 
 Budget ~€60–90 for a stepped-sine ~600 VA unit (e.g. APC Back-UPS BX/ES, CyberPower UT/BR). A pure
-sine-wave output only matters for active-PFC *server* PSUs; a mini-PC on a laptop-style DC adapter
+sine-wave output only matters for active-PFC _server_ PSUs; a mini-PC on a laptop-style DC adapter
 tolerates a stepped waveform fine.
 
 > **The trap:** with small APC units the model number decides everything. A `BX500MI` has the USB
@@ -40,7 +40,7 @@ tolerates a stepped waveform fine.
 ## Hardware hookup
 
 - **Arm the battery first.** A fresh unit ships with the battery disconnected (a yellow isolator
-  tab). Push the connector fully in until it clicks, and seat it *firmly* — a loose connector reads
+  tab). Push the connector fully in until it clicks, and seat it _firmly_ — a loose connector reads
   over USB as an intermittent battery-disconnect (`REPLACEBATT`/`NOBATT` flapping with fault beeps)
   even though the battery still carries the load.
 - **Plug the host into a battery-backup outlet**, and the **USB-B → host** cable into the host's
@@ -60,7 +60,12 @@ For a single box owning the USB cable, `apcupsd` is the simplest choice (NUT is 
 machine must listen over the network). One idempotent script installs it, points it at the USB HID
 UPS, writes sane shutdown thresholds, and verifies:
 
-<CodeSnippet file="scripts/phase1-harden/apcupsd-setup.sh" start={13} end={19} title="apcupsd-setup.sh — the shutdown thresholds" />
+<CodeSnippet
+  file="scripts/phase1-harden/apcupsd-setup.sh"
+  start={13}
+  end={19}
+  title="apcupsd-setup.sh — the shutdown thresholds"
+/>
 
 The snippet above is the heart of it — the thresholds. The full script installs the package, points
 it at the USB HID UPS, and verifies; run it as root on the host (**Full file** link above).
@@ -77,11 +82,11 @@ apcaccess status | grep -E 'STATUS|MODEL|BCHARGE|TIMELEFT|LOADPCT'
 
 While on battery, three settings act as an **OR** — the first one hit starts the shutdown:
 
-| `apcupsd.conf` | Fires when… | Set to |
-|---|---|---|
-| `BATTERYLEVEL` | charge ≤ this % | `20` (backstop — SLA estimates drift near empty) |
-| `MINUTES` | est. runtime left < this | `10` (**primary trigger** on a light-load box) |
-| `TIMEOUT` | seconds elapsed on battery | `0` in production (a blunt test-only stopwatch) |
+| `apcupsd.conf` | Fires when…                | Set to                                           |
+| -------------- | -------------------------- | ------------------------------------------------ |
+| `BATTERYLEVEL` | charge ≤ this %            | `20` (backstop — SLA estimates drift near empty) |
+| `MINUTES`      | est. runtime left < this   | `10` (**primary trigger** on a light-load box)   |
+| `TIMEOUT`      | seconds elapsed on battery | `0` in production (a blunt test-only stopwatch)  |
 
 Key them off your **real** shutdown time, not the datasheet: time one clean `poweroff` (stopping
 guests + flushing ZFS often takes 30–90 s), call it `T`, and set `MINUTES` to ≈ 2–3× `T`. On a
@@ -103,16 +108,17 @@ stop after each guest's timeout), exports the ZFS pool cleanly, and powers off. 
 without damage.
 
 > **Two things that surprise people:**
+>
 > - **Pulling the USB cable ≠ shutdown.** Without the data cable apcupsd is blind — it just logs
 >   `COMMLOST` and keeps running on mains. But while USB is unplugged there's **no protection**: a
->   real outage then hard-cuts the host. The USB link *is* the safety wire.
+>   real outage then hard-cuts the host. The USB link _is_ the safety wire.
 > - **Re-verify after the battery ages.** A tired SLA pack's runtime estimate drifts — exactly when
 >   thin margins bite. Re-run the mains-pull test once the pack has some months on it.
 
 ## Bonus: a free power meter
 
 Once apcupsd is wired, `apcaccess` reports `LOADPCT` (watts ≈ `LOADPCT` × the UPS's watt rating),
-plus line voltage and battery state — and it keeps reporting *during* an outage over local USB,
+plus line voltage and battery state — and it keeps reporting _during_ an outage over local USB,
 when a WiFi smart plug can't. Coarse, but already cabled and good enough to chart the box's draw.
 
 **Next:** [A verified 3-2-1 backup →](/en/04-backup-3-2-1)

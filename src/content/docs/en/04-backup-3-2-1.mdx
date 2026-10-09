@@ -16,40 +16,40 @@ This is the heart of the build. The rule everyone repeats:
 
 Two distinctions to internalise first, because conflating them is the classic mistake:
 
-- **Snapshots** = instant rollback on the *same disk*. Free, great before an upgrade — but they die
+- **Snapshots** = instant rollback on the _same disk_. Free, great before an upgrade — but they die
   with the disk, so they are **not a backup**.
-- **Backups** = a full copy on *different* media. Survives disk death, fat-fingers, and ransomware.
+- **Backups** = a full copy on _different_ media. Survives disk death, fat-fingers, and ransomware.
 
 ## The data model: one source of truth, backups radiate outward
 
 **Fresh data lands on the host, then flows outward — `host → on-site → off-site`, never inward.**
 
-| Tier | Where | Role | Protects against |
-|---|---|---|---|
-| **Source of truth** | Host **NVMe mirror** (ZFS) | where fresh data lives and is organized; redundant, self-healing, snapshotted | one disk dying · "oops" edits |
-| **Copy #2 — local** | **on-site SSD** (always plugged) | `restic` copy for fast local restore | host / pool death |
-| **Copy #3 — off-site** | **off-site SSD** (rotates out) | `restic` archive that leaves the house | fire · theft |
+| Tier                   | Where                            | Role                                                                          | Protects against              |
+| ---------------------- | -------------------------------- | ----------------------------------------------------------------------------- | ----------------------------- |
+| **Source of truth**    | Host **NVMe mirror** (ZFS)       | where fresh data lives and is organized; redundant, self-healing, snapshotted | one disk dying · "oops" edits |
+| **Copy #2 — local**    | **on-site SSD** (always plugged) | `restic` copy for fast local restore                                          | host / pool death             |
+| **Copy #3 — off-site** | **off-site SSD** (rotates out)   | `restic` archive that leaves the house                                        | fire · theft                  |
 
-Rules that fall out of it: new data is saved on the host *first* (never on a bare USB stick); you
+Rules that fall out of it: new data is saved on the host _first_ (never on a bare USB stick); you
 organize only on the host; a file's home is the host and backups only ever radiate outward. A single
 exFAT stick has no redundancy, checksums, or snapshots — so fresh data must never land there first.
 
 **The one exception is bulk media** (movies, music, games). It's often too big for a 1 TB mirror
 and barely compresses, so it stays on the on-site SSD — still streamable by bind-mounting that SSD
-read-only into a media-server guest. Only the *irreplaceable* data (photos, documents) lives on the
+read-only into a media-server guest. Only the _irreplaceable_ data (photos, documents) lives on the
 mirror.
 
 ## The tooling split — three tools, three jobs
 
-| Job | Tool |
-|---|---|
-| Ingest / 1:1 copy onto the mirror, browsable | **rsync** (`rsync -a --checksum`) |
-| Versioned, encrypted, verifiable backup repos (on/off-site, cloud) | **restic** |
-| Instant local undo + cheap replication | **ZFS snapshots** / `zfs send` |
+| Job                                                                | Tool                              |
+| ------------------------------------------------------------------ | --------------------------------- |
+| Ingest / 1:1 copy onto the mirror, browsable                       | **rsync** (`rsync -a --checksum`) |
+| Versioned, encrypted, verifiable backup repos (on/off-site, cloud) | **restic**                        |
+| Instant local undo + cheap replication                             | **ZFS snapshots** / `zfs send`    |
 
 The distinction that matters: **rsync mirrors** (deletions and corruption propagate — no history,
 not a backup on its own), while **restic backs up** (point-in-time snapshots, dedup, encryption,
-self-verifying). Use rsync to *land* files on the host, restic for the *copies*.
+self-verifying). Use rsync to _land_ files on the host, restic for the _copies_.
 
 ## Two drives, named by role
 
@@ -80,11 +80,11 @@ restic init -r /mnt/ssd-offsite/restic     # prompts to set a password (twice)
 
 > **Save the restic password in your password manager the moment you set it — never on the drive.**
 > restic has no recovery path; lose the password and the backup is permanently unreadable. Once the
-> drive is off-site, that password *is* its security.
+> drive is off-site, that password _is_ its security.
 
 ## Take the second copy before touching anything
 
-Get everything into the off-site repo *before* you reorganize — so a copy always exists at every
+Get everything into the off-site repo _before_ you reorganize — so a copy always exists at every
 step. Mount the on-site SSD **read-only** as belt-and-suspenders while it's still your only copy:
 
 ```bash
@@ -156,7 +156,7 @@ it). Apply without rebooting: `systemctl daemon-reload && mount -a`.
 
 **Disk-usage numbers are not proof of a complete backup** — they count allocated blocks, not
 backed-up bytes (exFAT rounds every small file up to its cluster size, so `df`/`du` run far ahead of
-real file bytes). Trust a backup only after restic confirms it *and* a real restore works:
+real file bytes). Trust a backup only after restic confirms it _and_ a real restore works:
 
 ```bash
 # (host, root)
@@ -196,7 +196,7 @@ shortcut, an occasional **`vzdump` → on-site SSD** is cheap (guests are small)
 full restore without rebuilding.
 
 **Keep your existing off-site copy (e.g. iCloud) until the new 3-2-1 is proven** — during a photo
-migration, that cloud copy *is* your off-site. Don't cancel it until data is in the new home *and* a
+migration, that cloud copy _is_ your off-site. Don't cancel it until data is in the new home _and_ a
 restore is verified.
 
 **Next:** [Automating backups with Backrest →](/en/05-backup-automation-backrest)

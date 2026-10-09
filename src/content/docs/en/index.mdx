@@ -31,11 +31,11 @@ Everything in the series serves one data-flow rule:
 
 > **Fresh data lands on the host, then flows outward: host → on-site → off-site. Never inward.**
 
-| Tier | Where | Protects against |
-|---|---|---|
-| **Source of truth** | Host NVMe mirror (ZFS, 2-disk) | one disk dying · "oops" edits (snapshots) |
-| **Copy #2 — local** | on-site SSD (always plugged) | host / pool death |
-| **Copy #3 — off-site** | off-site SSD (rotates out of the house) | fire · theft |
+| Tier                   | Where                                   | Protects against                          |
+| ---------------------- | --------------------------------------- | ----------------------------------------- |
+| **Source of truth**    | Host NVMe mirror (ZFS, 2-disk)          | one disk dying · "oops" edits (snapshots) |
+| **Copy #2 — local**    | on-site SSD (always plugged)            | host / pool death                         |
+| **Copy #3 — off-site** | off-site SSD (rotates out of the house) | fire · theft                              |
 
 The host is redundant and self-healing, so that's where you organize data. The backups radiate
 outward from it — you never tidy a backup, and fresh data never lands on a bare USB stick first.

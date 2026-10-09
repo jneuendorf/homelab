@@ -16,16 +16,16 @@ Requires Node ≥ 22. Built with **Astro 7.3** + `@astrojs/mdx`.
 
 ## How it's put together
 
-| Path | What |
-|---|---|
-| `src/content/docs/<locale>/*.mdx` | The tutorial content — one folder per language (`en`, `de`) |
+| Path                               | What                                                                                    |
+| ---------------------------------- | --------------------------------------------------------------------------------------- |
+| `src/content/docs/<locale>/*.mdx`  | The tutorial content — one folder per language (`en`, `de`)                             |
 | `src/components/CodeSnippet.astro` | Embeds a snippet from a real source file (optional line range) + links to the full file |
-| `src/pages/[lang]/[...slug].astro` | Renders a doc for a locale, falling back to English when a translation is missing |
-| `src/pages/source/[...path].astro` | Full-file viewer for everything under `scripts/` and `config/` |
-| `scripts/phaseN-*/` | The executable, idempotent host scripts, grouped by roadmap phase |
-| `scripts/run-phase.sh` | Run a whole phase end-to-end on the host |
-| `scripts/deploy.sh` | Copy scripts + config to the Proxmox host |
-| `config/` | Config templates (sanoid, fstab, Backrest notification hook) |
+| `src/pages/[lang]/[...slug].astro` | Renders a doc for a locale, falling back to English when a translation is missing       |
+| `src/pages/source/[...path].astro` | Full-file viewer for everything under `scripts/` and `config/`                          |
+| `scripts/phaseN-*/`                | The executable, idempotent host scripts, grouped by roadmap phase                       |
+| `scripts/run-phase.sh`             | Run a whole phase end-to-end on the host                                                |
+| `scripts/deploy.sh`                | Copy scripts + config to the Proxmox host                                               |
+| `config/`                          | Config templates (sanoid, fstab, Backrest notification hook)                            |
 
 ### Embedding code in the docs
 

@@ -26,7 +26,7 @@ from the host. This is the canonical example of "use an LXC when the app needs h
 Two ways — pick one:
 
 **Option A — community helper-script (less to do).** One command on the host builds an unprivileged
-Debian CT *and* installs Backrest interactively. These run as root via `curl | bash`, so use only
+Debian CT _and_ installs Backrest interactively. These run as root via `curl | bash`, so use only
 the official domain and skim the script first (or pin a specific commit instead of `main`):
 
 ```bash
@@ -65,7 +65,7 @@ pct set <CTID> -mp2 /mnt/ssd-offsite,mp=/mnt/ssd-offsite     # off-site repo (re
 
 > **The UID shift — only the write target needs a fix.** In an unprivileged LXC, container root is
 > host uid 100000. The read-only sources are fine as-is (`/rpool/bulk` is world-readable; exFAT has
-> no Unix owners). The repo must be writable, and it's the backup container's *alone* — nothing else
+> no Unix owners). The repo must be writable, and it's the backup container's _alone_ — nothing else
 > writes it — so a plain `chown -R 100000:100000 /mnt/ssd-offsite/restic` on the host is enough. No
 > idmap needed (that only earns its keep for data you also touch from the host, like a photo app's
 > library).
@@ -86,8 +86,8 @@ pct set <CTID> -mp2 /mnt/ssd-offsite,mp=/mnt/ssd-offsite     # off-site repo (re
   since macOS keeps recreating them on exFAT); a retention policy (e.g. keep-daily 7 / weekly 4 /
   monthly 6). **Schedule:** because the off-site drive rotates out, a daily cron would fail every
   day it's away — leave the schedule **disabled and click Backup when you dock it**. (An everyday
-  *auto* schedule belongs to an always-plugged on-site repo.)
-- **Prune + integrity check live on the *repo*, not the plan.** Edit the `ssd-offsite` repo → a
+  _auto_ schedule belongs to an always-plugged on-site repo.)
+- **Prune + integrity check live on the _repo_, not the plan.** Edit the `ssd-offsite` repo → a
   Prune policy (~monthly) + a Check policy running `restic check` with **read-data 5–10%** to catch
   silent bit-rot in the repo. These run whenever the drive is reachable.
 
@@ -99,7 +99,7 @@ Do the same green-light as the manual path, all in the UI:
    the drive isn't docked or a path is missing.
 2. **Confirm the snapshot** — the finished op shows files/bytes added; the snapshot appears with a
    timestamp and size.
-3. **Test-restore a small folder** — click the snapshot → file browser → drill into a *small* folder
+3. **Test-restore a small folder** — click the snapshot → file browser → drill into a _small_ folder
    → **Restore** to a scratch path like `/tmp/restore-test`.
 4. **Eyeball the files** on the host: `pct exec <CTID> -- ls -la /tmp/restore-test/…`, then clean up.
 
@@ -110,7 +110,11 @@ Do the same green-light as the manual path, all in the UI:
 Wire a **Shoutrrr** hook on the **repo** (repo-level covers backup + prune + check), condition
 **`CONDITION_ANY_ERROR`**, so a failed or aborted run tells you instead of silently not happening:
 
-<CodeSnippet file="config/backrest-shoutrrr-smtp.example" lang="bash" title="backrest-shoutrrr-smtp.example — a GMX SMTP example" />
+<CodeSnippet
+  file="config/backrest-shoutrrr-smtp.example"
+  lang="bash"
+  title="backrest-shoutrrr-smtp.example — a GMX SMTP example"
+/>
 
 Two things worth knowing for any mailbox provider:
 
@@ -121,8 +125,8 @@ Two things worth knowing for any mailbox provider:
   as a bogus `535`). To isolate auth from Backrest, test SMTP directly with `swaks` from inside the
   CT — you want `235 authentication succeeded`.
 
-> **Next level:** email only catches *"a run failed."* A command-hook **dead-man's-switch** (a
-> success-ping to an uptime monitor) also catches *"a run never happened"* — worth adding once you
+> **Next level:** email only catches _"a run failed."_ A command-hook **dead-man's-switch** (a
+> success-ping to an uptime monitor) also catches _"a run never happened"_ — worth adding once you
 > run a monitoring stack.
 
 **Next:** [Backing up guests →](/en/06-guest-backups)

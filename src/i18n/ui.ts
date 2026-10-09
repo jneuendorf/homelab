@@ -11,8 +11,7 @@ export const ui = {
     'lang.en': 'English',
     'lang.de': 'Deutsch',
     'doc.onThisPage': 'On this page',
-    'doc.fallback':
-      'This page has not been translated yet — showing the English version.',
+    'doc.fallback': 'This page has not been translated yet — showing the English version.',
     'snippet.fullFile': 'Full file',
     'snippet.github': 'GitHub',
     'snippet.lines': 'lines',

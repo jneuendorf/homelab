@@ -33,14 +33,14 @@
  * @property {string} [beatDeadline] Appended when they finished before the deadline. Default ✨.
  */
 
-Module.register("MMM-Routine", {
+Module.register('MMM-Routine', {
   defaults: {
-    deadline: "07:35",
+    deadline: '07:35',
     sound: true,
     /** @type {RoutineChild[]} */
     children: [],
     /** @type {RoutineBadges | ((ctx: RoutineCtx) => RoutineBadges)} */
-    badges: { leader: "🏆", done: "⭐", beatDeadline: "✨" },
+    badges: { leader: '🏆', done: '⭐', beatDeadline: '✨' },
   },
 
   start() {
@@ -51,32 +51,51 @@ Module.register("MMM-Routine", {
     setInterval(() => {
       const currentDayKey = this.todayKey();
       if (currentDayKey !== this.dayKey) {
-        this.dayKey = currentDayKey; this.state = {}; this.updateDom();
+        this.dayKey = currentDayKey;
+        this.state = {};
+        this.updateDom();
       } else if (this._deadlineEl) {
         this._deadlineEl.textContent = this.deadlineText();
       }
     }, 30 * 1000);
   },
 
-  getStyles() { return [this.file("MMM-Routine.css")]; },
+  getStyles() {
+    return [this.file('MMM-Routine.css')];
+  },
 
   notificationReceived(notification, payload) {
-    if (notification === "DAYPARTS_WEATHER") { this._weather = payload; this.updateDom(); }
-    else if (notification === "CALENDAR_EVENTS") { this._calendar = this.todayEvents(payload); this.updateDom(); }
+    if (notification === 'DAYPARTS_WEATHER') {
+      this._weather = payload;
+      this.updateDom();
+    } else if (notification === 'CALENDAR_EVENTS') {
+      this._calendar = this.todayEvents(payload);
+      this.updateDom();
+    }
   },
 
   todayKey() {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   },
-  load() { try { return JSON.parse(localStorage.getItem(`MMM-Routine:${this.dayKey}`)) || {}; } catch { return {}; } },
-  save() { localStorage.setItem(`MMM-Routine:${this.dayKey}`, JSON.stringify(this.state)); },
+  load() {
+    try {
+      return JSON.parse(localStorage.getItem(`MMM-Routine:${this.dayKey}`)) || {};
+    } catch {
+      return {};
+    }
+  },
+  save() {
+    localStorage.setItem(`MMM-Routine:${this.dayKey}`, JSON.stringify(this.state));
+  },
 
   todayEvents(events) {
     if (!Array.isArray(events)) return [];
     const now = new Date();
-    const isToday = (date) => date.getFullYear() === now.getFullYear()
-      && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
+    const isToday = (date) =>
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate();
     return events
       .map((event) => ({
         title: event.title,
@@ -97,7 +116,7 @@ Module.register("MMM-Routine", {
       color: child.color,
       date: now,
       dayOfWeek: now.getDay(),
-      time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+      time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
       calendar: this._calendar,
       weather: this._weather,
     };
@@ -105,24 +124,33 @@ Module.register("MMM-Routine", {
 
   /** @param {RoutineChild} child @returns {RoutineItem[]} */
   resolveItems(child) {
-    return typeof child.items === "function" ? child.items(this.buildContext(child)) : (child.items || []);
+    return typeof child.items === 'function'
+      ? child.items(this.buildContext(child))
+      : child.items || [];
   },
 
   /** @param {RoutineChild} child @returns {Required<RoutineBadges>} */
   resolveBadges(child) {
     const configured = this.config.badges;
-    const overrides = typeof configured === "function" ? configured(this.buildContext(child)) : (configured || {});
-    return { leader: "🏆", done: "⭐", beatDeadline: "✨", ...overrides };
+    const overrides =
+      typeof configured === 'function' ? configured(this.buildContext(child)) : configured || {};
+    return { leader: '🏆', done: '⭐', beatDeadline: '✨', ...overrides };
   },
 
   deadlineAt() {
     if (!this.config.deadline) return null;
-    const [hours, minutes] = this.config.deadline.split(":").map(Number);
-    const deadline = new Date(); deadline.setHours(hours, minutes, 0, 0); return deadline.getTime();
+    const [hours, minutes] = this.config.deadline.split(':').map(Number);
+    const deadline = new Date();
+    deadline.setHours(hours, minutes, 0, 0);
+    return deadline.getTime();
   },
-  beatDeadline(completedAt) { const deadlineMs = this.deadlineAt(); return deadlineMs != null && completedAt <= deadlineMs; },
+  beatDeadline(completedAt) {
+    const deadlineMs = this.deadlineAt();
+    return deadlineMs != null && completedAt <= deadlineMs;
+  },
   deadlineText() {
-    const deadlineMs = this.deadlineAt(); if (deadlineMs == null) return "";
+    const deadlineMs = this.deadlineAt();
+    if (deadlineMs == null) return '';
     const minutesLeft = Math.round((deadlineMs - Date.now()) / 60000);
     return minutesLeft >= 0
       ? `⏰ noch ${minutesLeft} min bis ${this.config.deadline}`
@@ -140,8 +168,13 @@ Module.register("MMM-Routine", {
     if (childState.done[toggledItem.label]) delete childState.done[toggledItem.label];
     else childState.done[toggledItem.label] = true;
     const complete = items.every((item) => childState.done[item.label]);
-    if (complete && !childState.completedAt) { childState.completedAt = Date.now(); this.ding(true); }
-    else if (!complete) { childState.completedAt = null; this.ding(false); }
+    if (complete && !childState.completedAt) {
+      childState.completedAt = Date.now();
+      this.ding(true);
+    } else if (!complete) {
+      childState.completedAt = null;
+      this.ding(false);
+    }
     this.save();
     this.updateDom();
   },
@@ -149,25 +182,32 @@ Module.register("MMM-Routine", {
   ding(fanfare) {
     if (!this.config.sound) return;
     try {
-      const audioContext = this._audioContext
-        || (this._audioContext = new (window.AudioContext || window.webkitAudioContext)());
+      const audioContext =
+        this._audioContext ||
+        (this._audioContext = new (window.AudioContext || window.webkitAudioContext)());
       const frequencies = fanfare ? [523, 659, 784, 1047] : [880];
       frequencies.forEach((frequency, index) => {
-        const oscillator = audioContext.createOscillator(), gain = audioContext.createGain();
-        oscillator.type = "sine"; oscillator.frequency.value = frequency;
-        oscillator.connect(gain); gain.connect(audioContext.destination);
+        const oscillator = audioContext.createOscillator(),
+          gain = audioContext.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = frequency;
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
         const startTime = audioContext.currentTime + index * 0.12;
         gain.gain.setValueAtTime(0.0001, startTime);
         gain.gain.exponentialRampToValueAtTime(0.25, startTime + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.26);
-        oscillator.start(startTime); oscillator.stop(startTime + 0.27);
+        oscillator.start(startTime);
+        oscillator.stop(startTime + 0.27);
       });
-    } catch (err) { /* audio not allowed yet */ }
+    } catch (err) {
+      /* audio not allowed yet */
+    }
   },
 
   getDom() {
-    const container = document.createElement("div");
-    container.className = "routine";
+    const container = document.createElement('div');
+    container.className = 'routine';
     const leaderName = this.leader();
 
     for (const child of this.config.children) {
@@ -176,35 +216,37 @@ Module.register("MMM-Routine", {
       const total = items.length;
       const doneCount = items.filter((item) => childState.done[item.label]).length;
 
-      const row = document.createElement("div");
-      row.className = "routine-row" + (childState.completedAt ? " done" : "");
-      row.style.setProperty("--child", child.color);
+      const row = document.createElement('div');
+      row.className = 'routine-row' + (childState.completedAt ? ' done' : '');
+      row.style.setProperty('--child', child.color);
 
-      const label = document.createElement("div");
-      label.className = "routine-label";
-      label.innerHTML = `<span class="routine-name">${child.name}</span>`
-        + `<span class="routine-progress">${doneCount}/${total}</span>`;
+      const label = document.createElement('div');
+      label.className = 'routine-label';
+      label.innerHTML =
+        `<span class="routine-name">${child.name}</span>` +
+        `<span class="routine-progress">${doneCount}/${total}</span>`;
       row.appendChild(label);
 
-      const itemsContainer = document.createElement("div");
-      itemsContainer.className = "routine-items";
+      const itemsContainer = document.createElement('div');
+      itemsContainer.className = 'routine-items';
       items.forEach((item) => {
-        const chip = document.createElement("button");
-        chip.className = "routine-item" + (childState.done[item.label] ? " checked" : "");
+        const chip = document.createElement('button');
+        chip.className = 'routine-item' + (childState.done[item.label] ? ' checked' : '');
         chip.innerHTML = `<span class="ri-icon">${item.icon}</span><span class="ri-label">${item.label}</span>`;
         chip.onclick = () => this.toggle(child, item, items);
         itemsContainer.appendChild(chip);
       });
       row.appendChild(itemsContainer);
 
-      const badge = document.createElement("span");
-      badge.className = "routine-badge";
+      const badge = document.createElement('span');
+      badge.className = 'routine-badge';
       if (childState.completedAt) {
         const badges = this.resolveBadges(child);
-        badge.textContent = (child.name === leaderName ? badges.leader : badges.done)
-          + (this.beatDeadline(childState.completedAt) ? badges.beatDeadline : "");
+        badge.textContent =
+          (child.name === leaderName ? badges.leader : badges.done) +
+          (this.beatDeadline(childState.completedAt) ? badges.beatDeadline : '');
       } else {
-        badge.style.visibility = "hidden";
+        badge.style.visibility = 'hidden';
       }
       row.appendChild(badge);
 
@@ -212,8 +254,8 @@ Module.register("MMM-Routine", {
     }
 
     if (this.config.deadline) {
-      const footer = document.createElement("div");
-      footer.className = "routine-deadline";
+      const footer = document.createElement('div');
+      footer.className = 'routine-deadline';
       footer.textContent = this.deadlineText();
       this._deadlineEl = footer;
       container.appendChild(footer);

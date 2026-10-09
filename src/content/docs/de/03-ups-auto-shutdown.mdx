@@ -24,8 +24,8 @@ Fürs Homelab ist die Checkliste kurz — und eine Eigenschaft ist die, die übe
 
 - [ ] **Line-interaktive** Topologie (nicht Standby/Offline, nicht Online-Doppelwandler)
 - [ ] **AVR** (automatische Spannungsregelung)
-- [ ] **Ein USB-*Daten*-Port** — der Teil, der das automatische Herunterfahren ermöglicht. Manche
-      Geräte führen USB nur als *Lade*-Ausgang — das ist hier nutzlos. Bestätige eine USB-B-/HID-Datenschnittstelle.
+- [ ] **Ein USB-_Daten_-Port** — der Teil, der das automatische Herunterfahren ermöglicht. Manche
+      Geräte führen USB nur als _Lade_-Ausgang — das ist hier nutzlos. Bestätige eine USB-B-/HID-Datenschnittstelle.
 - [ ] **NUT- oder apcupsd-kompatibel** (APC und CyberPower sind es beide)
 - [ ] **~500–650 VA / ~300–400 W** — du wirst bei ~5 % Last liegen; größer ist verschwendetes Geld
 - [ ] **Wechselbarer Standard-Akku** (ein Verschleißteil)
@@ -41,7 +41,7 @@ ein Mini-PC an einem Laptop-Netzteil verträgt eine trapezförmige Kurve problem
 ## Hardware-Anschluss
 
 - **Zuerst den Akku scharf schalten.** Ein neues Gerät wird mit getrenntem Akku ausgeliefert (eine
-  gelbe Isolierlasche). Drücke den Stecker vollständig ein, bis er klickt, und setze ihn *fest* — ein
+  gelbe Isolierlasche). Drücke den Stecker vollständig ein, bis er klickt, und setze ihn _fest_ — ein
   lockerer Stecker liest sich über USB als sporadische Akku-Trennung (`REPLACEBATT`/`NOBATT`-Flattern
   mit Fehlerpiepen), obwohl der Akku die Last noch trägt.
 - **Stecke den Host in eine akkugepufferte Steckdose** und das **USB-B → Host**-Kabel in den
@@ -62,7 +62,12 @@ Für eine einzelne Box, die das USB-Kabel besitzt, ist `apcupsd` die einfachste 
 Fall, dass eine zweite Maschine über das Netzwerk mithören muss). Ein idempotentes Skript installiert
 es, richtet es auf die USB-HID-USV aus, schreibt sinnvolle Abschalt-Schwellen und verifiziert:
 
-<CodeSnippet file="scripts/phase1-harden/apcupsd-setup.sh" start={13} end={19} title="apcupsd-setup.sh — die Abschalt-Schwellen" />
+<CodeSnippet
+  file="scripts/phase1-harden/apcupsd-setup.sh"
+  start={13}
+  end={19}
+  title="apcupsd-setup.sh — die Abschalt-Schwellen"
+/>
 
 Der Ausschnitt oben ist der Kern — die Schwellen. Das vollständige Skript installiert das Paket,
 richtet es auf die USB-HID-USV aus und verifiziert; führe es als Root auf dem Host aus (Link **Ganze
@@ -81,11 +86,11 @@ apcaccess status | grep -E 'STATUS|MODEL|BCHARGE|TIMELEFT|LOADPCT'
 Im Akkubetrieb wirken drei Einstellungen als **ODER** — die erste, die erreicht wird, startet das
 Herunterfahren:
 
-| `apcupsd.conf` | Löst aus, wenn… | Setzen auf |
-|---|---|---|
-| `BATTERYLEVEL` | Ladung ≤ diese % | `20` (Rückfallebene — Schätzungen driften bei fast leer) |
-| `MINUTES` | geschätzte Restlaufzeit < diese | `10` (**primärer Auslöser** bei geringer Last) |
-| `TIMEOUT` | Sekunden im Akkubetrieb | `0` im Produktivbetrieb (eine grobe Stoppuhr nur zum Testen) |
+| `apcupsd.conf` | Löst aus, wenn…                 | Setzen auf                                                   |
+| -------------- | ------------------------------- | ------------------------------------------------------------ |
+| `BATTERYLEVEL` | Ladung ≤ diese %                | `20` (Rückfallebene — Schätzungen driften bei fast leer)     |
+| `MINUTES`      | geschätzte Restlaufzeit < diese | `10` (**primärer Auslöser** bei geringer Last)               |
+| `TIMEOUT`      | Sekunden im Akkubetrieb         | `0` im Produktivbetrieb (eine grobe Stoppuhr nur zum Testen) |
 
 Richte sie an deiner **echten** Abschaltzeit aus, nicht am Datenblatt: miss ein sauberes `poweroff`
 (Gäste stoppen + ZFS flushen dauert oft 30–90 s), nenne es `T`, und setze `MINUTES` auf ≈ 2–3× `T`.
@@ -108,9 +113,10 @@ vorübergehend `TIMEOUT 60`, `systemctl restart apcupsd`, zieh das Netz und beob
 ZFS-Pool sauber und schaltet ab. Ein echter Ausfall parkt ohne Schaden.
 
 > **Zwei Dinge, die überraschen:**
+>
 > - **Das USB-Kabel ziehen ≠ Herunterfahren.** Ohne Datenkabel ist apcupsd blind — es loggt nur
 >   `COMMLOST` und läuft am Netz weiter. Aber während USB abgezogen ist, gibt es **keinen Schutz**:
->   ein echter Ausfall kappt den Host dann hart. Der USB-Link *ist* der Sicherheitsdraht.
+>   ein echter Ausfall kappt den Host dann hart. Der USB-Link _ist_ der Sicherheitsdraht.
 > - **Nach der Alterung des Akkus neu verifizieren.** Die Laufzeitschätzung eines müden Akkus driftet
 >   — genau dann, wenn knappe Margen zubeißen. Wiederhole den Ausstecktest, wenn der Akku ein paar
 >   Monate auf dem Buckel hat.
@@ -118,7 +124,7 @@ ZFS-Pool sauber und schaltet ab. Ein echter Ausfall parkt ohne Schaden.
 ## Bonus: ein kostenloses Strommessgerät
 
 Sobald apcupsd verdrahtet ist, meldet `apcaccess` `LOADPCT` (Watt ≈ `LOADPCT` × Watt-Nennwert der
-USV), dazu Netzspannung und Akkustatus — und es meldet *während* eines Ausfalls über lokales USB
+USV), dazu Netzspannung und Akkustatus — und es meldet _während_ eines Ausfalls über lokales USB
 weiter, wenn ein WLAN-Steckdosenmessgerät nicht kann. Grob, aber schon verkabelt und gut genug, um
 den Verbrauch der Box zu erfassen.
 
