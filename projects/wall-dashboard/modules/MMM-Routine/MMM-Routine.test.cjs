@@ -14,19 +14,22 @@ const dayKeyOf = (date) =>
 assert.equal(dayKeyOf(new Date(2026, 7, 25, 0, 0)), dayKeyOf(new Date(2026, 7, 25, 23, 59)));
 assert.notEqual(dayKeyOf(new Date(2026, 7, 25, 23, 59)), dayKeyOf(new Date(2026, 7, 26, 0, 1)));
 
-// calendar metadata survives normalization so a callback can filter by source color
+// calendar metadata survives normalization so a callback can filter by source color / location
 const mapEvent = (event) => ({
   title: event.title,
   start: new Date(Number(event.startDate)),
+  location: event.location || '',
   color: event.color,
 });
 const events = [
-  { title: 'Ausflug', startDate: Date.now(), color: '#2ecc71' },
+  { title: 'Ausflug', startDate: Date.now(), location: 'Zoo', color: '#2ecc71' },
   { title: 'Zahnarzt', startDate: Date.now(), color: '#3498db' },
 ].map(mapEvent);
 const myEvents = events.filter((event) => event.color === '#2ecc71');
 assert.equal(myEvents.length, 1);
 assert.equal(myEvents[0].title, 'Ausflug');
+assert.equal(myEvents[0].location, 'Zoo');
+assert.equal(events[1].location, ''); // missing location normalizes to ""
 
 const beatDeadline = (completedAt, deadlineMs) => deadlineMs != null && completedAt <= deadlineMs;
 assert.ok(beatDeadline(100, 200));

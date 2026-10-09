@@ -12,8 +12,9 @@
  * @property {Date}   date        Now, local time.
  * @property {number} dayOfWeek   0=Sun … 6=Sat.
  * @property {string} time        "HH:mm" now.
- * @property {Array<{title:string,start:Date,fullDayEvent:boolean,color:string,calendarName:string,symbol:(string|string[])}>} calendar
+ * @property {Array<{title:string,start:Date,fullDayEvent:boolean,location:string,color:string,calendarName:string,symbol:(string|string[])}>} calendar
  *   Today's events across all calendars, each carrying its source `color`/`calendarName`/`symbol`.
+ *   `location` is the event's place as a free-text string ("" when none).
  * @property {Array<{label:string,temp:number,code:number}>|null} weather
  *   Day-parts from MMM-DayParts (label/temp/WMO-code), or null until it reports.
  */
@@ -101,6 +102,7 @@ Module.register('MMM-Routine', {
         title: event.title,
         start: new Date(Number(event.startDate)),
         fullDayEvent: !!event.fullDayEvent,
+        location: event.location || '',
         color: event.color,
         calendarName: event.calendarName,
         symbol: event.symbol,
@@ -138,7 +140,9 @@ Module.register('MMM-Routine', {
   },
 
   deadlineAt() {
-    if (!this.config.deadline) return null;
+    if (!this.config.deadline) {
+      return null;
+    }
     const [hours, minutes] = this.config.deadline.split(':').map(Number);
     const deadline = new Date();
     deadline.setHours(hours, minutes, 0, 0);
@@ -150,7 +154,9 @@ Module.register('MMM-Routine', {
   },
   deadlineText() {
     const deadlineMs = this.deadlineAt();
-    if (deadlineMs == null) return '';
+    if (deadlineMs == null) {
+      return '';
+    }
     const minutesLeft = Math.round((deadlineMs - Date.now()) / 60000);
     return minutesLeft >= 0
       ? `⏰ noch ${minutesLeft} min bis ${this.config.deadline}`

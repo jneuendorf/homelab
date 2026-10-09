@@ -67,6 +67,37 @@ pct exec 101 -- cp /opt/magicmirror/config/custom.css.sample /opt/magicmirror/co
 
 <CodeSnippet file="projects/wall-dashboard/install.sh" />
 
+## Editing the live config
+
+`config.js` and `custom.css` are **per-host** — your real tokens/IPs/names live only inside the LXC
+and a deploy never overwrites them. Edit them in place. The container's filesystem is mounted on the
+Proxmox host via its ZFS subvol, so you can edit the real files straight over the host's SSH — no
+sshd, keys, or `pct` dance inside the container:
+
+```bash
+# (Mac) — open the live config dir in your editor over SSH
+zed ssh://pve/rpool/data/subvol-101-disk-0/opt/magicmirror/config
+```
+
+The subvol mountpoint is a persistent ZFS property, mounted on the host whether the container is
+running or stopped, so this path is stable across reboots. For another CTID/storage, derive it with
+`pct config <ctid>` + `zfs list`.
+
+Applying a change depends on **which** file you touched:
+
+| Changed      | How to apply                                         |
+| ------------ | ---------------------------------------------------- |
+| `config.js`  | Read at startup → **restart** the service            |
+| `custom.css` | Client-side only → **reload the tablet**, no restart |
+
+```bash
+# config.js: validate first (a syntax error blanks the dashboard), then restart
+ssh pve 'pct exec 101 -- node -e "require(\"/opt/magicmirror/config/config.js\"); console.log(\"config OK\")"'
+ssh pve 'pct exec 101 -- systemctl restart magicmirror'
+```
+
+Then reload the tablet kiosk (pull-to-refresh, or re-open `http://<lxc-ip>:8080`).
+
 ## Config — regions + widgets
 
 `/opt/magicmirror/config/config.js` inside the LXC. `serveronly` mode binds localhost by default —
@@ -74,6 +105,14 @@ open it up for the LAN so the tablet can connect. Replace `YOUR_TOKEN_1` / `YOUR
 your real iCloud calendar tokens.
 
 <CodeSnippet file="projects/wall-dashboard/config/config.js" />
+
+> **Keep it one file — and keep callbacks self-contained.** Don't try to split `config.js` with
+> `require("./other.js")`: MagicMirror loads the config by **compiling it from a string**
+> (`require-from-string`), so relative requires have no directory to resolve against and the module
+> crash-loops. For the same reason, an `items`/`badges` **callback is serialized to source and
+> re-evaluated in the browser** — it can reference only its `ctx` argument and built-ins. Any helper
+> it uses (a `pickDaily`, a lookup table) must be defined **inside the function body**, not at the
+> top of `config.js`, or the widget throws `ReferenceError` client-side.
 
 ## iCloud calendar — read-only ICS
 
@@ -98,10 +137,10 @@ Notes:
 
 MagicMirror has **no theme engine** — theming is plain CSS cascade. `css/main.css` defines
 everything via `:root` CSS variables; overrides go in **`config/custom.css`**, which loads last.
-Activate it once: `cp config/custom.css.sample config/custom.css`. **CSS is client-side — edit and
-reload the browser, no `systemctl restart`** (only `config.js` changes need a restart).
+Activate it once: `cp config/custom.css.sample config/custom.css`.
 
-Set `--theme` at the top of `custom.css`. Change one line — reload — done.
+Set `--theme` at the top of `custom.css`. Change one line, reload the tablet, done — no restart
+needed (CSS is client-side; see [Editing the live config](#editing-the-live-config)).
 
 <CodeSnippet file="projects/wall-dashboard/config/custom.css" />
 
@@ -159,6 +198,8 @@ badges: { leader: "🥇", done: "😎", beatDeadline: "⚡" }
   items: (ctx) => {
     // this child's events: calendar color === child color (see the calendars config above)
     const mine = ctx.calendar.filter((e) => e.color === ctx.color);
+    // today's event somewhere other than home/school — a plain free-text test, no coordinates
+    const away = mine.some((e) => e.location && !/schule|kita|zuhause/i.test(e.location));
     return [
       { icon: "🛏️", label: "Umziehen" },
       { icon: "🥐", label: "Frühstück" },
@@ -167,8 +208,10 @@ badges: { leader: "🥇", done: "😎", beatDeadline: "⚡" }
       ...(ctx.dayOfWeek === 2 ? [{ icon: "🎽", label: "Sportzeug" }] : []),
       // cold morning → jacket
       ...((ctx.weather?.[0]?.temp ?? 20) < 8 ? [{ icon: "🧥", label: "Jacke" }] : []),
-      // school trip on this child's calendar today
-      ...(mine.some((e) => /ausflug/i.test(e.title)) ? [{ icon: "🎒", label: "Rucksack" }] : []),
+      // school trip on this child's calendar today (title or location)
+      ...(mine.some((e) => /ausflug/i.test(e.title + " " + e.location)) ? [{ icon: "🎒", label: "Rucksack" }] : []),
+      // out-of-house appointment today → pack a water bottle
+      ...(away ? [{ icon: "🚰", label: "Trinkflasche" }] : []),
     ];
   },
 }
