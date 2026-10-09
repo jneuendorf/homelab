@@ -182,40 +182,13 @@ typedef at the top of the module, so editors autocomplete it with `// @ts-check`
 config stays plain JS. Done-state is keyed by item **label** (not index), so a callback can add or
 drop items on re-render without scrambling the checkmarks — keep labels unique per child.
 
-The reward emojis are configurable too, via a module-level `badges` key — an object (or `(ctx) =>
-object`, same pattern as `items`) with `leader` / `done` / `beatDeadline`. Missing keys keep their
-defaults (🏆 / ⭐ / ✨), so let the kids pick their own from
-[emojis.wiki/success](https://emojis.wiki/success/):
+The reward emojis are configurable the same way: each child's `badges` with `leader` / `done` /
+`beatDeadline`, as an object or a `(ctx) => object` callback. Missing keys keep their defaults (🏆 / ⭐ / ✨), so let the kids pick their own from
+[emojis.wiki/success](https://emojis.wiki/success/).
 
-```javascript
-badges: { leader: "🥇", done: "😎", beatDeadline: "⚡" }
-```
-
-```javascript
-{
-  name: "Kind 1", color: "#2ecc71",
-  // fixed list still works — or return one dynamically:
-  items: (ctx) => {
-    // this child's events: calendar color === child color (see the calendars config above)
-    const mine = ctx.calendar.filter((e) => e.color === ctx.color);
-    // today's event somewhere other than home/school — a plain free-text test, no coordinates
-    const away = mine.some((e) => e.location && !/schule|kita|zuhause/i.test(e.location));
-    return [
-      { icon: "🛏️", label: "Umziehen" },
-      { icon: "🥐", label: "Frühstück" },
-      { icon: "🪥", label: "Zähne" },
-      // Tuesday = Sport → pack the gym bag
-      ...(ctx.dayOfWeek === 2 ? [{ icon: "🎽", label: "Sportzeug" }] : []),
-      // cold morning → jacket
-      ...((ctx.weather?.[0]?.temp ?? 20) < 8 ? [{ icon: "🧥", label: "Jacke" }] : []),
-      // school trip on this child's calendar today (title or location)
-      ...(mine.some((e) => /ausflug/i.test(e.title + " " + e.location)) ? [{ icon: "🎒", label: "Rucksack" }] : []),
-      // out-of-house appointment today → pack a water bottle
-      ...(away ? [{ icon: "🚰", label: "Trinkflasche" }] : []),
-    ];
-  },
-}
-```
+The [config above](#config--regions--widgets) shows both forms: `Kind 1` uses a fixed list and
+fixed badges, while `Kind 2` builds its list from weekday, weather and its calendar events (incl.
+`location`), and picks its badges from a daily-rotating pool.
 
 <CodeSnippet file="projects/wall-dashboard/modules/MMM-Routine/MMM-Routine.js" />
 <CodeSnippet file="projects/wall-dashboard/modules/MMM-Routine/MMM-Routine.css" />

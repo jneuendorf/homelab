@@ -68,13 +68,14 @@ let config = {
       config: {
         deadline: '07:35',
         sound: true,
-        // Reward emojis when a child finishes. Object (or (ctx) => object).
-        // Let the kids pick from https://emojis.wiki/success/
-        badges: { leader: '🏆', done: '⭐', beatDeadline: '✨' },
+        // Per child: `items` (checklist) and `badges` (reward emojis, default 🏆/⭐/✨; let the kids
+        // pick from https://emojis.wiki/success/) are each a plain value OR a (ctx) => value callback.
+        // Kind 1 shows the simple form, Kind 2 the dynamic one.
         children: [
           {
             name: 'Kind 1',
             color: '#2ecc71',
+            badges: { leader: '🥇', done: '😎', beatDeadline: '⚡' },
             items: [
               { icon: '🛏️', label: 'Umziehen' },
               { icon: '🥐', label: 'Frühstück' },
@@ -87,14 +88,41 @@ let config = {
           {
             name: 'Kind 2',
             color: '#3498db',
-            items: [
-              { icon: '🛏️', label: 'Umziehen' },
-              { icon: '🧇', label: 'Frühstück' },
-              { icon: '👀', label: 'Stundenplan' },
-              { icon: '🍱🥤', label: 'Einpacken' },
-              { icon: '🪥', label: 'Zähne' },
-              { icon: '👕👟', label: 'Anziehen' },
-            ],
+            // Callbacks are re-evaluated in the browser: use only `ctx` + built-ins, no outer helpers.
+            // One emoji per badge from a pool, stable for the day (no flicker on re-render).
+            badges: (ctx) => {
+              const day = Math.floor(Date.now() / 86400000);
+              const pick = (choices, salt) => choices[(day + salt) % choices.length];
+              return {
+                leader: pick(['🏆', '🐉', '🦖', '👑'], 0),
+                done: pick(['⭐', '🙌', '⚽'], 1),
+                beatDeadline: pick(['✨', '🔥', '🚀'], 2),
+              };
+            },
+            items: (ctx) => {
+              // this child's events: calendar color === child color (see `calendars` above)
+              const mine = ctx.calendar.filter((e) => e.color === ctx.color);
+              // an event somewhere other than home/school: a plain free-text test, no coordinates
+              const away = mine.some((e) => e.location && !/schule|kita|zuhause/i.test(e.location));
+              return [
+                { icon: '🛏️', label: 'Umziehen' },
+                { icon: '🧇', label: 'Frühstück' },
+                { icon: '👀', label: 'Stundenplan' },
+                // Tuesday = Sport → pack the gym bag
+                ...(ctx.dayOfWeek === 2 ? [{ icon: '🎽', label: 'Sportzeug' }] : []),
+                // school trip on this child's calendar today (title or location)
+                ...(mine.some((e) => /ausflug/i.test(e.title + ' ' + e.location))
+                  ? [{ icon: '🎒', label: 'Rucksack' }]
+                  : []),
+                // out-of-house appointment today → pack a water bottle
+                ...(away ? [{ icon: '🚰', label: 'Trinkflasche' }] : []),
+                { icon: '🍱🥤', label: 'Einpacken' },
+                { icon: '🪥', label: 'Zähne' },
+                // cold morning → jacket
+                ...((ctx.weather?.[0]?.temp ?? 20) < 8 ? [{ icon: '🧥', label: 'Jacke' }] : []),
+                { icon: '👕👟', label: 'Anziehen' },
+              ];
+            },
           },
         ],
       },

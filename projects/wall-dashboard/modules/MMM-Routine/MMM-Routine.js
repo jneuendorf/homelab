@@ -25,6 +25,8 @@
  * @property {string} color
  * @property {RoutineItem[] | ((ctx: RoutineCtx) => RoutineItem[])} items
  *   A fixed list, or a callback that builds today's list from `ctx`.
+ * @property {RoutineBadges | ((ctx: RoutineCtx) => RoutineBadges)} [badges]
+ *   This child's reward emojis, as a fixed object or a callback. Omitted → defaults.
  */
 
 /**
@@ -40,8 +42,6 @@ Module.register('MMM-Routine', {
     sound: true,
     /** @type {RoutineChild[]} */
     children: [],
-    /** @type {RoutineBadges | ((ctx: RoutineCtx) => RoutineBadges)} */
-    badges: { leader: '🏆', done: '⭐', beatDeadline: '✨' },
   },
 
   start() {
@@ -133,7 +133,7 @@ Module.register('MMM-Routine', {
 
   /** @param {RoutineChild} child @returns {Required<RoutineBadges>} */
   resolveBadges(child) {
-    const configured = this.config.badges;
+    const configured = child.badges;
     const overrides =
       typeof configured === 'function' ? configured(this.buildContext(child)) : configured || {};
     return { leader: '🏆', done: '⭐', beatDeadline: '✨', ...overrides };
