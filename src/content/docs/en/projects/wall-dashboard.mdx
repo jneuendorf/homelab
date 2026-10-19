@@ -1,44 +1,139 @@
 ---
-title: Wall Dashboard (MagicMirror)
-description: An always-on info screen on a wall-mounted tablet — clock, weather, calendars, and custom widgets — running MagicMirror in an unprivileged LXC.
+title: Wall Dashboard
+description: An always-on family screen on a wall-mounted tablet — clock, weather, calendars, routines, and shared lists — served by a small own Node shell in an unprivileged LXC.
 order: 10
 ---
 
 import CodeSnippet from '../../../../components/CodeSnippet.astro';
 
-# Wall Dashboard (MagicMirror)
+# Wall Dashboard
 
-A **fixed, wall-mounted tablet** showing a kid-friendly info screen — weather, today's calendar,
-and custom widgets. Built on **MagicMirror²**, where everything is a module, so writing your own
-widget is the normal workflow, not a hack.
+A **fixed, wall-mounted tablet** showing a family screen: a left **app menubar** (Today, Calendar,
+Routine, Lists), a top-right **user switcher**, and apps that can **read and write** data. It is a
+small own shell in `projects/wall-dashboard/` — Node ≥ 22.18, no framework, no build for the server —
+because it runs 24/7 and idle power matters.
 
 > **Prerequisites:** a working Proxmox host
 > ([Installing & Hardening Proxmox](/en/01-proxmox-install-harden)), and an understanding of the
 > [LXC-vs-VM decision](/en/01-proxmox-install-harden#two-guest-types--pick-well).
 
-## Why MagicMirror
+> **Transition:** the old MagicMirror setup (`config/`, `modules/`, `install.sh`) still runs on
+> **:8080** in the same CT until the shell reaches parity; the shell runs beside it on **:8090**.
 
-- **Everything is a module** placed into a **region** (`top_left`, `bottom_bar`, …). Hundreds of
-  community `MMM-*` modules exist (weather, iCal, transit, photos, RSS). Composing the screen =
-  listing modules in `config.js`.
-- **Custom widgets are first-class** — see [Custom widgets](#custom-widgets).
-- **Display-first, not an app framework.** Touch works, but stateful apps (e.g. a todo list)
-  belong in an [iframe](#embedding-other-apps-iframe).
+## Why an own shell (not Home Assistant)
+
+Home Assistant covers most widgets, but three goals tipped it:
+
+| Need                    | Home Assistant                                                | Own shell                                            |
+| ----------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
+| **User switcher**       | HA users are logins; faking it costs users × cards conditions | Native: `forUser()` + sparse per-user overrides      |
+| **Config**              | YAML / UI-stored, untyped                                     | Typed TS; each app owns its config                   |
+| **Footprint (24/7)**    | HA OS VM, ~2 GB RAM, constant background activity             | Node in the existing LXC, ~100 MB RSS, ~0 % CPU idle |
+| **Calendar write**      | Yes (CalDAV / Google)                                         | Not done — read-only ICS                             |
+| **Phone notifications** | Companion app for free                                        | None                                                 |
+
+Revisit HA (or put it _behind_ this shell as a data backend) if calendar writes or phone
+notifications become must-haves. The full comparison lives in `projects/wall-dashboard/NOTES.md`.
+
+**Low-power choices:** no server timers (weather / calendar are fetched on request and cached for
+30 / 10 min); writes are pushed over SSE, never polled; clocks re-render once per minute; no CSS
+animations at rest; dark themes.
 
 ## Platform decision
 
-| Question                     | Answer               | Why                                                                         |
-| ---------------------------- | -------------------- | --------------------------------------------------------------------------- |
-| Needs Docker?                | **No**               | Plain Node app; community-scripts installs it directly.                     |
-| Wants host bind-mount?       | **No**               | Calendar via network ICS, other apps via network iframe — no host ZFS data. |
-| Hard isolation / own kernel? | **No**               | Internal, low-risk display app.                                             |
-| **Result**                   | **unprivileged LXC** | Also a stronger default escape posture than a lone Docker container.        |
+| Question                     | Answer               | Why                                                                        |
+| ---------------------------- | -------------------- | -------------------------------------------------------------------------- |
+| Needs Docker?                | **No**               | Plain Node app with one runtime dependency (`ical.js`).                    |
+| Wants host bind-mount?       | **No**               | Calendars come over the network (ICS); state is one SQLite file in the CT. |
+| Hard isolation / own kernel? | **No**               | Internal, low-risk display app.                                            |
+| **Result**                   | **unprivileged LXC** | Reuses CT 101 (created by the MagicMirror community-script).               |
 
-## Install (community-scripts LXC)
+## Layout
 
-Find MagicMirror on [community-scripts.org](https://community-scripts.org/scripts/magicmirror) →
-copy its `bash -c "$(curl -fsSL …)"` line → audit the script → run it **(host)**. It creates an
-unprivileged LXC and installs Node + MagicMirror (under `/opt/magicmirror`).
+```
+dashboard.config.ts   users + enabled apps (sanitized sample, in git)
+dashboard.local.ts    the real one — gitignored, lives only in the CT, wins if present
+sdk/index.ts          the app contract: defineApp, forUser, secret, html, adoptStyle
+shell/                menubar, user menu, mount/unmount of the active app
+server/main.ts        static files, /api/events (SSE), /api/<app>/kv/<key>, /api/<app>/*
+apps/<id>/            index.ts (typed factory), ui.ts, server.ts, *.test.ts
+```
+
+```bash
+# (Mac) — build + serve on :8090; tests; typecheck
+npm --prefix projects/wall-dashboard run dev
+npm --prefix projects/wall-dashboard test
+npm --prefix projects/wall-dashboard run check
+```
+
+## The app contract
+
+An app is one folder. Its `index.ts` calls `defineApp`, which turns a definition (id, menubar
+label, defaults, lazy `ui` / `server` imports) into a **typed factory**: `routine({ deadline:
+'07:40' })`. The server never loads UI code, and the browser only loads the active app's chunk.
+
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={48} end={69} />
+
+- **UI:** `mount(el, ctx)` draws into `el` and returns a cleanup. Vanilla, React (`createRoot(el)`)
+  or Svelte all fit; TS needs no per-app build (esbuild bundles it).
+- **Server:** a `Handler` is `(req: Request, ctx) => Response` — web-standard, no framework,
+  mounted at `/api/<app>/*`.
+- **Store:** every app gets `ctx.store.get/set` (SQLite via `node:sqlite`). Each `set` is pushed to
+  all screens; `ctx.subscribe(key, cb)` listens and is removed on unmount.
+
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={14} end={32} />
+
+- **Per-user config:** layers are app defaults → instance config → `perUser[id]` (sparse,
+  shallow). `ctx.config` is already resolved for the selected user; `ctx.configFor(id)` serves apps
+  that show several users at once.
+- **Secrets:** `secret('NAME')` reads `process.env` on the server and is `undefined` in the
+  browser bundle — only the variable name ships to the client. Server code (`server.ts`) is
+  stubbed out of the bundle entirely.
+
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={81} end={89} />
+
+## Config
+
+One typed file lists users and apps; menubar order = array order. The repo holds a **sanitized
+sample**; the real one is `dashboard.local.ts` next to it, gitignored and only in the CT. Calendar
+URLs carry tokens, so they come from `.env` via `secret()`:
+
+<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={10} end={31} />
+
+`theme` is `kids`, `night` or `contrast`. The config is bundled into the browser too, so **edits
+need a rebuild** — re-run `install-shell.sh` (below) after changing it.
+
+## Routine callbacks
+
+The morning checklist shows one row per user with non-empty `items`; parents without items get no
+row. Tap to check off; state lives in the server store, so every screen agrees, and it resets per
+day. First to finish gets the `leader` badge, finishing before `deadline` adds `beatDeadline`.
+
+Per user, `items` and `badges` are a plain value **or** a `(ctx) => value` callback. Callbacks run
+in the browser and are bundled, so — unlike MagicMirror's serialized callbacks — they may import
+shared helpers.
+
+<CodeSnippet file="projects/wall-dashboard/apps/routine/index.ts" start={22} end={40} />
+
+`ctx.calendar` holds today's events (this user's + family-wide, incl. `location`); `ctx.weather`
+the day parts from the weather app. A dynamic child from the sample:
+
+<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={48} end={79} />
+
+Done-state is keyed by item **label**, so a callback can add or drop items without scrambling
+checkmarks — keep labels unique per user. Badge ideas: [emojis.wiki/success](https://emojis.wiki/success/).
+
+## iCloud calendar — read-only ICS
+
+Each feed needs a public ICS URL in its **`https://`** form (not webcal):
+
+- **Your own iCloud calendar** → **Mac Calendar** → right-click it → **Share Calendar** → tick
+  **Public Calendar** → copy the link. Unpublish → republish rotates a leaked token.
+- **A subscribed calendar** → select it → **Edit** (or File → Get Info) shows the URL.
+- **Shared with you via iCloud** (not subscribed) → no public ICS; ask the owner to publish it.
+
+A feed with `user` belongs to that user (their color, their routine `ctx`); without `user` it is
+family-wide and shown to everyone.
 
 ## Deploy from this repo
 
@@ -46,129 +141,66 @@ unprivileged LXC and installs Node + MagicMirror (under `/opt/magicmirror`).
 # (Mac) — sync the repo to the host
 scripts/deploy.sh root@192.168.1.10
 
-# (host) — push modules + configs into CT 101, restart MagicMirror
-/opt/homelab/projects/wall-dashboard/install.sh 101
+# (host) — push the shell into CT 101, build it there, (re)start the service
+/opt/homelab/projects/wall-dashboard/install-shell.sh 101
 ```
 
-Module code is overwritten on every deploy; the live config never is. The repo's sanitized
-`config.js` / `custom.css` land as `*.sample` — copy them into place once:
+The script checks for Node ≥ 22.18 in the CT, pushes **code only** to `/opt/wall-dashboard` —
+`dashboard.local.ts`, `.env` and the data are never in the tarball, so a deploy can't clobber them —
+builds inside the CT, and installs a systemd unit running as an unprivileged `wall` user:
+
+<CodeSnippet file="projects/wall-dashboard/install-shell.sh" start={39} end={58} />
+
+First deploy only — put the real config and secrets in place, then re-run `install-shell.sh`:
 
 ```bash
-# (host) — first deploy only
-pct exec 101 -- cp /opt/magicmirror/config/config.js.sample /opt/magicmirror/config/config.js
-pct exec 101 -- cp /opt/magicmirror/config/custom.css.sample /opt/magicmirror/config/custom.css
+# (host)
+pct exec 101 -- cp /opt/wall-dashboard/dashboard.config.ts /opt/wall-dashboard/dashboard.local.ts
+pct exec 101 -- sh -c 'printf "CAL_KIND1=https://…\n" > /opt/wall-dashboard/.env && chmod 600 /opt/wall-dashboard/.env'
 ```
+
+The calendar's "today" is the CT's local day — check its timezone (`timedatectl`). Logs:
+`pct exec 101 -- journalctl -u wall-dashboard -f`.
 
 ## Editing the live config
 
-Your real tokens/IPs/names live only in the LXC. Its ZFS subvol is mounted on the host whether the
-container runs or not, so edit the files straight over the host's SSH (other CTID/storage: derive
-the path with `pct config <ctid>` + `zfs list`):
+The CT's ZFS subvol is mounted on the host whether the container runs or not, so edit
+`dashboard.local.ts` / `.env` straight over the host's SSH (other CTID/storage: derive the path with
+`pct config <ctid>` + `zfs list`), then rebuild:
 
 ```bash
 # (Mac)
-zed ssh://pve/rpool/data/subvol-101-disk-0/opt/magicmirror/config
+zed ssh://pve/rpool/data/subvol-101-disk-0/opt/wall-dashboard
+ssh pve /opt/homelab/projects/wall-dashboard/install-shell.sh 101
 ```
 
-`custom.css` is client-side — just reload the tablet. `config.js` is read at startup — validate it
-(a syntax error blanks the dashboard), restart, then reload the tablet:
+esbuild strips types without checking them: a syntax error fails the build, a type error does not.
+Typecheck config changes on the Mac first (`npm --prefix projects/wall-dashboard run check`).
 
-```bash
-ssh pve 'pct exec 101 -- node -e "require(\"/opt/magicmirror/config/config.js\"); console.log(\"config OK\")"'
-ssh pve 'pct exec 101 -- systemctl restart magicmirror'
-```
+## Writing an app
 
-## Config — regions + widgets
+1. **Create `apps/<id>/index.ts`** with the config type and defaults. A UI-only app is this small:
 
-`serveronly` binds localhost by default; `address` + `ipWhitelist` open it to the LAN so the tablet
-can connect. Replace `YOUR_TOKEN_1` / `YOUR_TOKEN_2` with your
-[calendar tokens](#icloud-calendar--read-only-ics).
+   <CodeSnippet file="projects/wall-dashboard/apps/today/index.ts" />
 
-<CodeSnippet file="projects/wall-dashboard/config/config.js" />
+2. **Write `ui.ts`** exporting `mount`. Use `html` (escapes interpolations, `raw()` for trusted
+   markup) and `adoptStyle` with a CSS file imported as text. Persist with `ctx.store.set` and
+   react to other screens with `ctx.subscribe` — the lists app does both:
 
-> **One file, self-contained callbacks.** MagicMirror compiles `config.js` from a string
-> (`require-from-string`), so `require("./other.js")` has no directory to resolve against and
-> crash-loops. Likewise, `items`/`badges` callbacks are **serialized and re-evaluated in the
-> browser**: they may use only `ctx` and built-ins. Define helpers inside the function body, or
-> the widget throws `ReferenceError`.
+   <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={56} end={65} />
+   <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={90} end={98} />
 
-## iCloud calendar — read-only ICS
+3. **Need secrets, validation or a remote fetch?** Add `server.ts` with a default `Handler` and
+   point `server` at it. Omit `label` / `ui` for a server-only app without a menubar entry — the
+   weather app fetches on request and caches, so no timer runs while nobody looks:
 
-The `calendar` module needs a public ICS URL per calendar, in its **`https://`** form (not webcal):
+   <CodeSnippet file="projects/wall-dashboard/apps/weather/server.ts" start={28} end={50} />
 
-- **Your own iCloud calendar** → **Mac Calendar** → right-click it → **Share Calendar** → tick
-  **Public Calendar** → copy the link. Unpublish → republish rotates a leaked token.
-- **A subscribed calendar** → select it → **Edit** (or File → Get Info) shows the URL.
-- **Shared with you via iCloud** (not subscribed) → no public ICS; ask the owner to publish it.
+4. **Register it** by calling the factory in `dashboard.config.ts` (and your `dashboard.local.ts`).
+5. **Test the pure parts** in `*.test.ts` (`node --test`, no browser), as `routine/logic.ts` does.
 
-Each calendar's `color` (+ optional Font-Awesome `symbol`) shows with `coloredText` /
-`coloredSymbol: true` — and MMM-Routine uses it to find a child's events.
-
-## Theming
-
-No theme engine — plain CSS cascade: `css/main.css` defines `:root` variables, and
-`config/custom.css` (loaded last) overrides them. Switch themes via `--theme`, then reload the
-tablet:
-
-<CodeSnippet file="projects/wall-dashboard/config/custom.css" start={1} end={33} />
-
-> Style queries need Chrome 111+ / Safari 18+. On older engines, use
-> `:root[data-theme="night"] { … }` and set `data-theme` on `<html>`.
-
-## Custom widgets
-
-A module is a folder `modules/MMM-*/`: frontend JS (`getDom()` draws), an optional server-side
-`node_helper.js` (fetches, secrets), and CSS. Socket notifications carry data between the two
-halves. Each module has a self-check that runs without MagicMirror:
-
-```bash
-node projects/wall-dashboard/modules/MMM-DayParts/MMM-DayParts.test.cjs
-node projects/wall-dashboard/modules/MMM-Routine/MMM-Routine.test.cjs
-```
-
-### MMM-DayParts
-
-Morgen / Mittag / Abend with temperature + weather emoji from Open-Meteo (no API key) — the stock
-`weather` module only does "now" or a rolling hourly list. The `node_helper` fetches the fixed
-hours:
-
-<CodeSnippet file="projects/wall-dashboard/modules/MMM-DayParts/node_helper.js" />
-
-The frontend requests them, renders, and rebroadcasts them as `DAYPARTS_WEATHER` for other modules:
-
-<CodeSnippet
-  file="projects/wall-dashboard/modules/MMM-DayParts/MMM-DayParts.js"
-  start={17}
-  end={34}
-/>
-
-### MMM-Routine
-
-Per-kid morning checklist at the bottom, purely client-side. Tap to check off; resets at midnight
-(date-keyed `localStorage`). First to finish gets 🏆, finishing before the deadline adds ✨.
-
-Per child, `items` and `badges` are each a fixed value or a `(ctx) => value` callback — the
-[config above](#config--regions--widgets) shows both (`Kind 1` fixed, `Kind 2` dynamic). `ctx`
-carries weekday, time, today's calendar events (incl. `location`), and the DayParts weather; its
-JSDoc typedef gives editor autocompletion with `// @ts-check`. Done-state is keyed by item
-**label**, so a callback can add or drop items without scrambling checkmarks — keep labels unique
-per child. Badge ideas for the kids: [emojis.wiki/success](https://emojis.wiki/success/).
-
-<CodeSnippet file="projects/wall-dashboard/modules/MMM-Routine/MMM-Routine.js" start={1} end={37} />
-
-## Embedding other apps (iframe)
-
-**[MMM-iFrame](https://github.com/alberttwong/MMM-iFrame)** drops any URL in as a tile — a todo
-app, a Grafana panel, Home Assistant. The app must **allow being framed** (no `X-Frame-Options:
-DENY` / `frame-ancestors 'none'`); for your own containers, configure the app or relax the header
-at a reverse proxy.
-
-```javascript
-{
-  module: "MMM-iFrame", position: "lower_third",
-  config: { url: ["http://192.168.1.30:2021/"], width: "100%", height: "420" },
-}
-```
+An app with its own toolchain (e.g. Svelte) adds a `package.json` with a `build` script in its
+folder; `build.ts` runs it before bundling the shell.
 
 ## Tablet kiosk
 
@@ -176,4 +208,5 @@ at a reverse proxy.
   **Auto-Lock: Never**; keep on charger.
 - **Android:** **Fully Kiosk Browser** (or Fullscreen Immersive) pointed at the URL; disable
   screen timeout.
-- Point at the reverse-proxy HTTPS name once that's up, else `http://<lxc-ip>:8080`.
+- Point at the reverse-proxy HTTPS name once that's up, else `http://<lxc-ip>:8090`. The selected
+  user is remembered per device.
