@@ -10,6 +10,6 @@ log(){ printf '\033[1;32m[+]\033[0m %s\n' "$*"; }
 
 log "syncing scripts/ + config/ + projects/ → $HOST:$DEST"
 ssh "$HOST" "mkdir -p '$DEST'"
-rsync -a --delete --exclude='*.test.js' "$ROOT/scripts" "$ROOT/config" "$ROOT/projects" "$HOST:$DEST/"
-ssh "$HOST" "chmod +x '$DEST'/scripts/*.sh '$DEST'/scripts/*/*.sh '$DEST'/projects/*/install.sh 2>/dev/null || true"
+rsync -a --delete --exclude='*.test.js' --exclude=node_modules --exclude='projects/*/dist' --exclude='projects/*/data' "$ROOT/scripts" "$ROOT/config" "$ROOT/projects" "$HOST:$DEST/"
+ssh "$HOST" "chmod +x '$DEST'/scripts/*.sh '$DEST'/scripts/*/*.sh '$DEST'/projects/*/*.sh 2>/dev/null || true"
 log "done — on the host:  $DEST/scripts/run-phase.sh 1"
