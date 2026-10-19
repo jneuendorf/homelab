@@ -1,0 +1,29 @@
+{
+  "name": "wall-dashboard",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "imports": {
+    "#sdk": "./sdk/index.ts",
+    "#config": "./dashboard.config.ts"
+  },
+  "scripts": {
+    "build": "node build.ts",
+    "start": "node --env-file-if-exists=.env server/main.ts",
+    "dev": "node build.ts && node --env-file-if-exists=.env server/main.ts",
+    "test": "node --test 'sdk/*.test.ts' 'server/*.test.ts' 'apps/**/*.test.ts'",
+    "check": "tsc",
+    "lint": "biome lint"
+  },
+  "dependencies": {
+    "ical.js": "^2.2.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "^24.19.2",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3"
+  }
+}

@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 4321
+    },
+    {
+      "name": "wall-dashboard",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "projects/wall-dashboard", "run", "dev"],
+      "port": 8090
     }
   ]
 }

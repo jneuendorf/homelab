@@ -1,0 +1,34 @@
+.today {
+  display: grid;
+  grid-template-columns: minmax(10em, 1fr) 2fr;
+  gap: 2em;
+}
+.clock .time {
+  font-size: 3.2em;
+  line-height: 1;
+  color: var(--bright);
+}
+.clock .date {
+  color: var(--accent-2);
+}
+.weather {
+  margin-top: 1em;
+}
+.weather .now {
+  font-size: 2.2em;
+  color: var(--bright);
+}
+.weather .part {
+  display: grid;
+  grid-template-columns: 4.5em 1.6em auto;
+  gap: 0.4em;
+  color: var(--dim);
+}
+.weather .part b {
+  color: var(--bright);
+}
+@media (max-width: 800px) {
+  .today {
+    grid-template-columns: 1fr;
+  }
+}

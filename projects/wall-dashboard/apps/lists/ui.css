@@ -1,0 +1,61 @@
+.lists {
+  max-width: 36em;
+}
+.list-tabs {
+  display: flex;
+  gap: 0.5em;
+  margin-bottom: 0.6em;
+}
+.list-tabs button,
+.list-clear {
+  padding: 0.3em 0.8em;
+  border: 2px solid var(--surface);
+  border-radius: 2em;
+  background: var(--surface);
+  color: var(--dim);
+}
+.list-tabs button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--bright);
+}
+.list-add {
+  display: flex;
+  gap: 0.5em;
+}
+.list-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4em 0.6em;
+  border: 2px solid var(--surface);
+  border-radius: 0.6em;
+  background: var(--surface);
+  color: var(--bright);
+  font: inherit;
+  user-select: text;
+}
+.list-add button {
+  width: 2.4em;
+  border: 0;
+  border-radius: 0.6em;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: bold;
+}
+.lists ul {
+  margin: 0.8em 0;
+  padding: 0;
+  list-style: none;
+}
+.lists li button {
+  width: 100%;
+  padding: 0.35em 0.2em;
+  border: 0;
+  border-bottom: 1px solid var(--surface);
+  background: transparent;
+  color: var(--bright);
+  text-align: left;
+}
+.lists li button.done {
+  color: var(--dim);
+  text-decoration: line-through;
+}

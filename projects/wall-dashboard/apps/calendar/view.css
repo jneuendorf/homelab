@@ -1,0 +1,34 @@
+.agenda-day h2 {
+  margin: 0.8em 0 0.3em;
+  color: var(--accent);
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.agenda-day ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.event {
+  display: grid;
+  grid-template-columns: 5.2em 1fr;
+  column-gap: 0.6em;
+  padding: 0.25em 0 0.25em 0.6em;
+  border-left: 0.25em solid var(--event);
+  margin-bottom: 0.3em;
+}
+.event-time {
+  color: var(--accent-2);
+}
+.event-title {
+  color: var(--bright);
+}
+.event-location {
+  grid-column: 2;
+  color: var(--dim);
+  font-size: 0.8em;
+}
+.agenda-empty {
+  color: var(--dim);
+}
