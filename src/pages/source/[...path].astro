@@ -1,4 +1,5 @@
 ---
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Code } from 'astro:components';
@@ -9,24 +10,16 @@ import { ui } from '../../i18n/ui';
 export function getStaticPaths() {
   // Defined inside getStaticPaths: Astro extracts this into an isolated chunk that only
   // carries the module's imports, not other top-level declarations.
-  const ROOTS = ['scripts', 'config', 'projects'];
-  const walk = (dir: string, acc: string[] = []): string[] => {
-    for (const name of fs.readdirSync(dir)) {
-      const full = path.join(dir, name);
-      if (fs.statSync(full).isDirectory()) walk(full, acc);
-      else acc.push(full);
-    }
-    return acc;
-  };
-  const files: string[] = [];
-  for (const root of ROOTS) {
-    const abs = path.resolve(process.cwd(), root);
-    if (fs.existsSync(abs)) walk(abs, files);
-  }
-  return files.map((abs) => {
-    const rel = path.relative(process.cwd(), abs);
-    return { params: { path: rel }, props: { rel } };
-  });
+  // git decides what is source: tracked + untracked-but-not-ignored, so node_modules/, dist/
+  // and host-local secrets (.env, dashboard.local.ts) never become pages.
+  const files = execFileSync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard', 'scripts', 'config', 'projects'],
+    { encoding: 'utf-8' },
+  )
+    .split('\n')
+    .filter((rel) => rel && fs.existsSync(rel));
+  return files.map((rel) => ({ params: { path: rel }, props: { rel } }));
 }
 
 const { rel } = Astro.props as { rel: string };
