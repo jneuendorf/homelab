@@ -66,6 +66,47 @@ npm --prefix projects/wall-dashboard test
 npm --prefix projects/wall-dashboard run check
 ```
 
+## How it works
+
+**`sdk/`** is the contract between shell and apps, imported by both the server and the browser
+bundle (so nothing in it touches the DOM at import time): `defineApp` / `defineDashboard`, the
+per-user merge `forUser`, `secret`, the escaping `html` tag, `$` (a lookup that throws instead of
+returning `null`), `adoptStyle` and `everyMinute`. Its types define the two app contracts below.
+
+**`server/`** is one Node process with no timers:
+
+- **`main.ts`** serves the built files from `dist/public`, the SSE stream `/api/events`, a
+  per-app key/value store `/api/<app>/kv/<key>` (SQLite; every write is broadcast over SSE), and
+  forwards `/api/<app>/*` to that app's `server.ts` as a web-standard `Request`.
+- **`config.ts`** loads `dashboard.local.ts` if present, else the sanitized `dashboard.config.ts`.
+- **`net.ts`** holds the request guards (see [Security](#security)).
+
+The browser loads `index.html` + the shell bundle, opens **one** `EventSource`, and lazy-loads the
+selected app's chunk. Apps read with `ctx.store.get` / `ctx.api(...)` and write with
+`ctx.store.set` (a `PUT`); the server pushes the new value to every other screen.
+
+### Security
+
+There is no login: the screen is a shared kiosk. Instead every request passes three checks:
+
+| Check                                                       | Blocks                                                                                                                                |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `isLan(ip)` — loopback, RFC1918, link-local                 | anything from outside the LAN (e.g. a stray port-forward)                                                                             |
+| `isAllowedHost(Host)` — IP literal, localhost, `WALL_HOSTS` | **DNS rebinding**: a web page opened on any LAN device points its own domain at the CT and would otherwise use the API as same-origin |
+| `isSameOrigin(Origin)` on non-GET                           | **CSRF**: a foreign page posting a form to an app handler                                                                             |
+
+Responses carry a CSP (`default-src 'self'`, no framing), `nosniff` and `no-referrer`; 500s send no
+error details. All markup goes through `html` (escaping), so feed titles and list entries can't
+inject HTML. Calendar URLs stay in `.env` and are only read server-side.
+
+- Reaching the screen by **name** (reverse proxy, `wall.home`) → list it in `.env`:
+  `WALL_HOSTS=wall.home`. If that proxy is internet-facing, `isLan` sees the proxy's LAN IP —
+  restrict access at the proxy.
+- `dashboard.local.ts` is **bundled into the browser** too: never put a token in it as a literal,
+  always `secret('NAME')`.
+- Any LAN device can read and write all app data by design; plain HTTP until the reverse proxy
+  adds TLS.
+
 ## The app contract
 
 An app is one folder. Its `index.ts` calls `defineApp`, which turns a definition (id, menubar

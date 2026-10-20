@@ -48,6 +48,9 @@ build.ts               per-app `npm run build` (if any) → esbuild shell bundle
   needing validation/atomic ops add a `server.ts`.
 - **Config layers:** app defaults → instance config → `perUser[id]` (sparse). Size grows with
   users + apps, never users × apps.
+- **No login, three guards** (`server/net.ts`): LAN source IP, Host allowlist against DNS
+  rebinding (IP literals, localhost, `WALL_HOSTS`), same-Origin for writes against CSRF; plus a
+  strict CSP. Any LAN device may read/write all app data by design.
 - **Secrets:** `secret('NAME')` reads `process.env` on the server and is `undefined` in the browser
   bundle — only the variable name ships to the client.
 
