@@ -6,13 +6,24 @@ import { dirname, extname, join, normalize, sep } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { Handler, ServerStore } from '#sdk';
 import { loadConfig } from './config.ts';
-import { isLan } from './net.ts';
+import { isAllowedHost, isLan, isSameOrigin } from './net.ts';
 
 const port = Number(process.env.PORT ?? 8090);
 const host = process.env.HOST ?? '0.0.0.0';
 const dbPath = process.env.WALL_DATA ?? join(import.meta.dirname, '../data/wall.db');
 const publicDir = join(import.meta.dirname, '../dist/public');
 const maxBody = 256 * 1024;
+const hostNames = (process.env.WALL_HOSTS ?? '')
+  .split(',')
+  .map((name) => name.trim().toLowerCase())
+  .filter(Boolean);
+const securityHeaders = {
+  'content-security-policy':
+    "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
+    "base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'no-referrer',
+};
 
 const dashboard = await loadConfig();
 
@@ -143,6 +154,11 @@ const serveStatic = async (res: ServerResponse, pathname: string) => {
 
 createServer(async (req, res) => {
   if (!isLan(req.socket.remoteAddress)) return send(res, 403, 'forbidden');
+  if (!isAllowedHost(req.headers.host, hostNames)) return send(res, 403, 'unknown host');
+  const write = req.method !== 'GET' && req.method !== 'HEAD';
+  if (write && !isSameOrigin(req.headers.origin, req.headers.host))
+    return send(res, 403, 'cross-origin write');
+  for (const [name, value] of Object.entries(securityHeaders)) res.setHeader(name, value);
   const { pathname } = new URL(req.url ?? '/', 'http://localhost');
   try {
     if (pathname === '/api/events') return events(req, res);
@@ -154,7 +170,8 @@ createServer(async (req, res) => {
       (error as { status?: number }).status ??
       (error instanceof SyntaxError || error instanceof URIError ? 400 : 500);
     if (status === 500) console.error(error);
-    if (!res.headersSent) send(res, status, (error as Error).message);
+    if (!res.headersSent)
+      send(res, status, status === 500 ? 'internal error' : (error as Error).message);
     else res.end();
   }
 }).listen(port, host, () => console.log(`wall-dashboard on http://${host}:${port}`));
