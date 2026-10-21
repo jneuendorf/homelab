@@ -6,8 +6,9 @@
     "node": ">=22.18"
   },
   "imports": {
+    "#config": "./dashboard.config.ts",
     "#sdk": "./sdk/index.ts",
-    "#config": "./dashboard.config.ts"
+    "#sdk/utils": "./sdk/utils.ts"
   },
   "scripts": {
     "build": "node build.ts",

@@ -29,7 +29,8 @@ backend behind this shell) if calendar _writes_ or phone notifications become mu
 ```
 dashboard.config.ts    users + enabled apps (sanitized sample, in git)
 dashboard.local.ts     the real one, gitignored, lives only in the CT — wins if present
-sdk/index.ts           defineApp, defineDashboard, forUser, secret, html, adoptStyle
+sdk/index.ts           #sdk: the contract — types, defineApp, defineDashboard, forUser, secret
+sdk/utils.ts           #sdk/utils: optional helpers — html, raw, $, adoptStyle, pad, everyMinute
 shell/                 index.html + shell.css + main.ts: menubar, user menu, mount/unmount
 server/main.ts         static files, /api/events (SSE), /api/<app>/kv/<key>, /api/<app>/* handlers
 apps/<id>/             index.ts (factory: config type + defaults), ui.ts, server.ts, *.test.ts

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { defineApp, forUser, html, raw } from './index.ts';
+import { defineApp, forUser } from './index.ts';
+import { html, raw } from './utils.ts';
 
 test('app defaults → instance config → sparse per-user override', () => {
   const app = defineApp<{ deadline: string; sound: boolean }>({

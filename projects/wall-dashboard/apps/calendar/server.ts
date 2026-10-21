@@ -1,10 +1,10 @@
 import ICAL from 'ical.js';
 import type { Handler } from '#sdk';
+import { pad } from '#sdk/utils';
 import type { CalendarConfig, CalendarEvent } from './index.ts';
 
 type Occurrence = Omit<CalendarEvent, 'user' | 'color'>;
 
-const pad = (n: number) => String(n).padStart(2, '0');
 const toEventTime = (time: ICAL.Time) =>
   time.isDate ? `${time.year}-${pad(time.month)}-${pad(time.day)}` : time.toJSDate().toISOString();
 

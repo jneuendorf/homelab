@@ -1,5 +1,5 @@
 // Agenda rendering shared by the calendar and today apps (browser only).
-import { adoptStyle, html, raw } from '#sdk';
+import { adoptStyle, html, raw } from '#sdk/utils';
 import css from './view.css';
 import { startOf, type CalendarEvent } from './index.ts';
 

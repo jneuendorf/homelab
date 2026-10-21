@@ -53,7 +53,8 @@ animations at rest; dark themes.
 ```
 dashboard.config.ts   users + enabled apps (sanitized sample, in git)
 dashboard.local.ts    the real one — gitignored, lives only in the CT, wins if present
-sdk/index.ts          the app contract: defineApp, forUser, secret, html, adoptStyle
+sdk/index.ts          #sdk — the app contract: types, defineApp, forUser, secret
+sdk/utils.ts          #sdk/utils — optional helpers: html, raw, $, adoptStyle, pad, everyMinute
 shell/                menubar, user menu, mount/unmount of the active app
 server/main.ts        static files, /api/events (SSE), /api/<app>/kv/<key>, /api/<app>/*
 apps/<id>/            index.ts (typed factory), ui.ts, server.ts, *.test.ts
@@ -68,10 +69,12 @@ npm --prefix projects/wall-dashboard run check
 
 ## How it works
 
-**`sdk/`** is the contract between shell and apps, imported by both the server and the browser
-bundle (so nothing in it touches the DOM at import time): `defineApp` / `defineDashboard`, the
-per-user merge `forUser`, `secret`, the escaping `html` tag, `$` (a lookup that throws instead of
-returning `null`), `adoptStyle` and `everyMinute`. Its types define the two app contracts below.
+**`sdk/`** has two entry points. **`#sdk`** is the contract between shell and apps, imported by
+both the server and the browser bundle: the types, `defineApp` / `defineDashboard`, the per-user
+merge `forUser` and `secret` — nothing else, so an app in any framework needs only this.
+**`#sdk/utils`** holds optional helpers for vanilla apps: the escaping `html` tag (+ `raw`), `$` (a
+lookup that throws instead of returning `null`), `adoptStyle`, `pad` and the minute-aligned
+timer `everyMinute`.
 
 **`server/`** is one Node process with no timers:
 
@@ -224,9 +227,9 @@ Typecheck config changes on the Mac first (`npm --prefix projects/wall-dashboard
 
    <CodeSnippet file="projects/wall-dashboard/apps/today/index.ts" />
 
-2. **Write `ui.ts`** exporting `mount`. Use `html` (escapes interpolations, `raw()` for trusted
-   markup) and `adoptStyle` with a CSS file imported as text. Persist with `ctx.store.set` and
-   react to other screens with `ctx.subscribe` — the lists app does both:
+2. **Write `ui.ts`** exporting `mount`. From `#sdk/utils`, use `html` (escapes interpolations,
+   `raw()` for trusted markup) and `adoptStyle` with a CSS file imported as text. Persist with
+   `ctx.store.set` and react to other screens with `ctx.subscribe` — the lists app does both:
 
    <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={56} end={65} />
    <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={90} end={98} />

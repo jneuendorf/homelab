@@ -1,4 +1,5 @@
-import { $, adoptStyle, everyMinute, html, raw, type Mount } from '#sdk';
+import type { Mount } from '#sdk';
+import { $, adoptStyle, everyMinute, html, raw } from '#sdk/utils';
 import { fetchEvents } from '../calendar/index.ts';
 import { agenda, useCalendarStyle } from '../calendar/view.ts';
 import { fetchWeather, icon, type Weather } from '../weather/index.ts';

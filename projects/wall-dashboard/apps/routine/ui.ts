@@ -1,8 +1,10 @@
-import { $, adoptStyle, dayKey, everyMinute, html, pad, raw, type Mount, type User } from '#sdk';
+import type { Mount, User } from '#sdk';
+import { $, adoptStyle, everyMinute, html, pad, raw } from '#sdk/utils';
 import { fetchEvents, type CalendarEvent } from '../calendar/index.ts';
 import { fetchWeather, type Weather } from '../weather/index.ts';
 import type { RoutineConfig, RoutineCtx } from './index.ts';
 import {
+  dayKey,
   deadlineAt,
   defaultBadges,
   doneCount,

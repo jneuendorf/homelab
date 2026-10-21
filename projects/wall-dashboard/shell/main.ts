@@ -1,6 +1,7 @@
 // Menubar (left), user switcher (top-right), and the mount/unmount lifecycle for one app at a time.
 import dashboard from '#config';
-import { $, forUser, html, type AppContext, type User } from '#sdk';
+import { forUser, type AppContext, type User } from '#sdk';
+import { $, html } from '#sdk/utils';
 
 const { users, locale = 'de-DE' } = dashboard;
 const apps = dashboard.apps.flatMap((app) => (app.ui ? [{ ...app, ui: app.ui }] : []));

@@ -1,5 +1,10 @@
 // Pure routine rules (tested without a browser).
+import { pad } from '#sdk/utils';
 import type { Badges, Item } from './index.ts';
+
+/** Local calendar day (not UTC) — the store key per morning is `day:<dayKey>`. */
+export const dayKey = (d = new Date()) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 export type UserState = { done: Record<string, true>; completedAt?: number | null };
 export type DayState = Record<string, UserState>;

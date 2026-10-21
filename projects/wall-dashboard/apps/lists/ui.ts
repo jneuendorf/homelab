@@ -1,4 +1,5 @@
-import { $, adoptStyle, html, raw, type Mount } from '#sdk';
+import type { Mount } from '#sdk';
+import { $, adoptStyle, html, raw } from '#sdk/utils';
 import type { Entry, ListsConfig } from './index.ts';
 import css from './ui.css';
 
