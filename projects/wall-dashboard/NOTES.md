@@ -30,7 +30,7 @@ backend behind this shell) if calendar _writes_ or phone notifications become mu
 dashboard.config.ts    users + enabled apps (sanitized sample, in git)
 dashboard.local.ts     the real one, gitignored, lives only in the CT — wins if present
 sdk/index.ts           #sdk: the contract — types, defineApp, defineDashboard, forUser, secret
-sdk/utils.ts           #sdk/utils: optional helpers — html, raw, $, adoptStyle, pad, everyMinute
+sdk/utils.ts           #sdk/utils: optional helpers — html, raw, $, adoptStyle, pad, every
 shell/                 index.html + shell.css + main.ts: menubar, user menu, mount/unmount
 server/main.ts         static files, /api/events (SSE), /api/<app>/kv/<key>, /api/<app>/* handlers
 apps/<id>/             index.ts (factory: config type + defaults), ui.ts, server.ts, *.test.ts
@@ -59,7 +59,8 @@ build.ts               per-app `npm run build` (if any) → esbuild shell bundle
 
 - No server timers: weather/calendar are fetched on request and cached (30 / 10 min).
 - Push, not poll, for writes (SSE); clients only refresh the _visible_ app's data.
-- Clock re-renders once per minute (aligned to the minute), not per second.
+- Timers are aligned (`every(ms)`): the Today clock updates one text node per second; everything
+  else (routine deadline, day rollover) ticks per minute. All of it runs in the tablet's browser.
 - No frameworks in the shell, no CSS animations at rest; dark themes (OLED/backlight friendly).
 - Node with type stripping: no server build, no dev server, no watcher in production.
 

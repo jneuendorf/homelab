@@ -49,8 +49,13 @@ export const adoptStyle = (id: string, css: string) => {
 
 export const pad = (n: number) => String(n).padStart(2, '0');
 
-/** setTimeout aligned to the next full minute, repeating; returns a stop function. */
-export const everyMinute = (fn: () => void) => {
+// Timers run on a monotonic clock, Date.now() on the (NTP-adjusted, privacy-rounded) wall clock:
+// a timeout aimed exactly at a boundary can fire a few ms early and render the previous second.
+// Firing slightly late is invisible; any value above that drift works.
+const boundarySlackMs = 20;
+
+/** setTimeout aligned to the next multiple of `ms` (e.g. full second), repeating; returns a stop function. */
+export const every = (ms: number, fn: () => void) => {
   let timer: ReturnType<typeof setTimeout>;
   const tick = () => {
     timer = setTimeout(
@@ -58,9 +63,10 @@ export const everyMinute = (fn: () => void) => {
         fn();
         tick();
       },
-      60_000 - (Date.now() % 60_000) + 50,
+      ms - (Date.now() % ms) + boundarySlackMs,
     );
   };
   tick();
   return () => clearTimeout(timer);
 };
+export const everyMinute = (fn: () => void) => every(60_000, fn);

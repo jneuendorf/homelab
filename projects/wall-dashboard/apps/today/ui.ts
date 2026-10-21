@@ -1,5 +1,5 @@
 import type { Mount } from '#sdk';
-import { $, adoptStyle, everyMinute, html, raw } from '#sdk/utils';
+import { $, adoptStyle, every, html, pad, raw } from '#sdk/utils';
 import { fetchEvents } from '../calendar/index.ts';
 import { agenda, useCalendarStyle } from '../calendar/view.ts';
 import { fetchWeather, icon, type Weather } from '../weather/index.ts';
@@ -20,21 +20,22 @@ export const mount: Mount<TodayConfig> = (el, ctx) => {
   const weatherEl = $(el, '.weather');
   const eventsEl = $(el, '.today-events');
 
+  clock.innerHTML = html`<div class="time"><span></span><span class="seconds"></span></div>
+    <div class="date"></div>`;
+  const [hmEl, secondsEl] = $(clock, '.time').children;
+  const dateEl = $(clock, '.date');
+  // per second only the seconds text changes; the rest is rewritten when it differs
   const tick = () => {
     const now = new Date();
-    clock.innerHTML = html`<div class="time">
-        ${now.toLocaleTimeString(ctx.locale, {
-          hour: '2-digit',
-          minute: '2-digit',
-        })}
-      </div>
-      <div class="date">
-        ${now.toLocaleDateString(ctx.locale, {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-        })}
-      </div>`;
+    secondsEl.textContent = pad(now.getSeconds());
+    const hm = now.toLocaleTimeString(ctx.locale, { hour: '2-digit', minute: '2-digit' });
+    if (hmEl.textContent !== hm) hmEl.textContent = hm;
+    const date = now.toLocaleDateString(ctx.locale, {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+    if (dateEl.textContent !== date) dateEl.textContent = date;
   };
   const showWeather = (w: Weather | null) => {
     weatherEl.innerHTML = w
@@ -60,7 +61,7 @@ export const mount: Mount<TodayConfig> = (el, ctx) => {
 
   tick();
   refresh();
-  const stopClock = everyMinute(tick);
+  const stopClock = every(1000, tick);
   const timer = setInterval(refresh, ctx.config.refreshMinutes * 60_000);
   return () => {
     stopClock();

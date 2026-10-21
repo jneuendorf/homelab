@@ -7,6 +7,12 @@
   font-size: 3.2em;
   line-height: 1;
   color: var(--bright);
+  font-variant-numeric: tabular-nums; /* seconds tick without shifting the layout */
+}
+.clock .seconds {
+  font-size: 0.4em;
+  margin-left: 0.15em;
+  color: var(--dim);
 }
 .clock .date {
   color: var(--accent-2);

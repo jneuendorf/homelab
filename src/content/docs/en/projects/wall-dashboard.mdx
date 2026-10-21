@@ -36,8 +36,8 @@ Revisit HA (or put it _behind_ this shell as a data backend) if calendar writes 
 notifications become must-haves. The full comparison lives in `projects/wall-dashboard/NOTES.md`.
 
 **Low-power choices:** no server timers (weather / calendar are fetched on request and cached for
-30 / 10 min); writes are pushed over SSE, never polled; clocks re-render once per minute; no CSS
-animations at rest; dark themes.
+30 / 10 min); writes are pushed over SSE, never polled; the clock updates one text node per
+second, everything else per minute; no CSS animations at rest; dark themes.
 
 ## Platform decision
 
@@ -54,7 +54,7 @@ animations at rest; dark themes.
 dashboard.config.ts   users + enabled apps (sanitized sample, in git)
 dashboard.local.ts    the real one — gitignored, lives only in the CT, wins if present
 sdk/index.ts          #sdk — the app contract: types, defineApp, forUser, secret
-sdk/utils.ts          #sdk/utils — optional helpers: html, raw, $, adoptStyle, pad, everyMinute
+sdk/utils.ts          #sdk/utils — optional helpers: html, raw, $, adoptStyle, pad, every
 shell/                menubar, user menu, mount/unmount of the active app
 server/main.ts        static files, /api/events (SSE), /api/<app>/kv/<key>, /api/<app>/*
 apps/<id>/            index.ts (typed factory), ui.ts, server.ts, *.test.ts
@@ -73,8 +73,8 @@ npm --prefix projects/wall-dashboard run check
 both the server and the browser bundle: the types, `defineApp` / `defineDashboard`, the per-user
 merge `forUser` and `secret` — nothing else, so an app in any framework needs only this.
 **`#sdk/utils`** holds optional helpers for vanilla apps: the escaping `html` tag (+ `raw`), `$` (a
-lookup that throws instead of returning `null`), `adoptStyle`, `pad` and the minute-aligned
-timer `everyMinute`.
+lookup that throws instead of returning `null`), `adoptStyle`, `pad` and the aligned timers
+`every` / `everyMinute`.
 
 **`server/`** is one Node process with no timers:
 
