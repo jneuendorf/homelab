@@ -65,6 +65,11 @@ build.ts               per-app `npm run build` (if any) → esbuild shell bundle
 Measured on macOS (Node 26): ~100 MB RSS after serving all apps, 0 CPU ticks over 20 s idle.
 Precompiling the server or shrinking V8's heap saved ≤ 6 % → not done. Re-measure in the CT.
 
+**Bun** (1.4) runs server, build and tests unmodified (`bun server/main.ts`, `bun test`). Same
+warm-up, 30 s idle: Bun 66 MB RSS but ~0.07 s CPU per 30 s (JSC GC timers keep waking it); Node
+110 MB and 0 CPU. Idle wakeups cost more energy than resident RAM, so Node stays the default;
+switch `ExecStart` in `install-shell.sh` only if RAM gets tight.
+
 ## Run & deploy
 
 ```bash
