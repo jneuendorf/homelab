@@ -1,0 +1,136 @@
+/* The visual contract, like #sdk is the code one. The shell loads it once, globally; apps never
+   import it — they use these tokens and `ui-` classes, in any framework.
+
+   Layers: everything here is layered, app CSS is not, so an app rule always wins over a shared one
+   (`.routine-item` can restyle `.ui-btn`) without specificity fights or !important.
+   Keep it small and additive: every app depends on it. Extract only what two apps already use. */
+@layer tokens, base, components;
+
+/* Themes: set `theme` in dashboard.config.ts → <html data-theme="…">. Themes override tokens only. */
+@layer tokens {
+  :root {
+    color-scheme: dark;
+    --bg: #10213f;
+    --surface: #182c50;
+    --text: #f2f5ff;
+    --dim: #9fb3d0;
+    --bright: #ffffff;
+    --accent: #ffcc33;
+    --accent-2: #4fd1c5;
+    --font-size: 26px;
+    --radius: 0.7em;
+    --border: 2px;
+    --gap: 0.5em;
+  }
+  :root[data-theme='night'] {
+    --bg: #000000;
+    --surface: #120806;
+    --text: #b03a2e;
+    --dim: #5a1e18;
+    --bright: #e06a5a;
+    --accent: #8a2b22;
+    --accent-2: #8a2b22;
+    --font-size: 24px;
+  }
+  :root[data-theme='contrast'] {
+    --bg: #000000;
+    --surface: #1a1a1a;
+    --text: #ffffff;
+    --dim: #cccccc;
+    --bright: #ffff00;
+    --accent: #00e5ff;
+    --accent-2: #00e5ff;
+    --font-size: 28px;
+  }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+}
+
+@layer components {
+  /* Outline button; `ui-btn--primary` for the one main action. */
+  .ui-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3em;
+    padding: 0.3em 0.7em;
+    border: var(--border) solid var(--dim);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--text);
+    transition: transform 0.12s;
+  }
+  .ui-btn:active {
+    transform: scale(0.94);
+  }
+  .ui-btn--primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: bold;
+  }
+
+  /* Pill for tabs, filters and small secondary actions; aria-pressed="true" marks the active one. */
+  .ui-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    padding: 0.3em 0.8em;
+    border: var(--border) solid var(--surface);
+    border-radius: 2em;
+    background: var(--surface);
+    color: var(--dim);
+  }
+  .ui-chip[aria-pressed='true'] {
+    border-color: var(--accent);
+    color: var(--bright);
+  }
+
+  /* Text, number, date inputs and selects. Re-enables text selection the shell turns off. */
+  .ui-input {
+    min-width: 0;
+    padding: 0.3em 0.5em;
+    border: var(--border) solid var(--surface);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--bright);
+    font: inherit;
+    user-select: text;
+  }
+
+  /* Native <dialog> opened with showModal(): <h2> title, <footer> for the buttons. */
+  .ui-dialog {
+    max-width: min(36em, 92vw);
+    max-height: 90vh;
+    border: 0;
+    border-radius: 1em;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .ui-dialog::backdrop {
+    background: rgb(0 0 0 / 0.6);
+  }
+  .ui-dialog h2 {
+    margin: 0 0 0.5em;
+  }
+  .ui-dialog footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--gap);
+    margin-top: 0.8em;
+  }
+
+  .ui-dim {
+    color: var(--dim);
+  }
+}

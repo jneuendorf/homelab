@@ -48,18 +48,10 @@
 }
 .routine-item {
   position: relative;
-  display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 0.15em;
   min-width: 5em;
   padding: 0.35em 0.7em;
-  border: 2px solid var(--dim);
-  border-radius: 0.7em;
-  background: transparent;
-  color: var(--text);
-  font-family: inherit;
-  cursor: pointer;
   transition:
     transform 0.12s,
     background 0.2s,
@@ -72,9 +64,6 @@
 }
 .routine-item .ri-label {
   font-size: 0.9em;
-}
-.routine-item:active {
-  transform: scale(0.92);
 }
 
 .routine-item.checked {

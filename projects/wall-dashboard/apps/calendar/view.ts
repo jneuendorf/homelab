@@ -28,7 +28,7 @@ const row = (e: CalendarEvent, locale: string) => {
 
 /** Events grouped under day headings; multi-day all-day events show on the first visible day. */
 export const agenda = (events: CalendarEvent[], locale: string, empty = 'Nichts geplant 🎈') => {
-  if (!events.length) return html`<p class="agenda-empty">${empty}</p>`;
+  if (!events.length) return html`<p class="ui-dim">${empty}</p>`;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const days = new Map<string, { date: Date; events: CalendarEvent[] }>();

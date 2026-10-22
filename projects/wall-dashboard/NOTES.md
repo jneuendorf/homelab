@@ -31,6 +31,7 @@ dashboard.config.ts    users + enabled apps (sanitized sample, in git)
 dashboard.local.ts     the real one, gitignored, lives only in the CT — wins if present
 sdk/index.ts           #sdk: the contract — types, defineApp, defineDashboard, forUser, secret
 sdk/utils.ts           #sdk/utils: optional helpers — html, raw, $, adoptStyle, pad, every, chime
+sdk/ui.css             visual contract — theme tokens, ui-btn/-chip/-input/-dialog (layered)
 shell/                 index.html + shell.css + main.ts: menubar, user menu, mount/unmount
 server/main.ts         static files, /api/events (SSE), /api/<app>/kv/<key>, /api/<app>/* handlers
 apps/<id>/             index.ts (factory: config type + defaults), ui.ts, server.ts, *.test.ts
@@ -48,6 +49,9 @@ build.ts               per-app `npm run build` (if any) → esbuild shell bundle
   `/api/<app>/kv/<key>`; a `set` is pushed to all screens over SSE (`ctx.subscribe(key)`). Apps
   needing validation/atomic ops add a `server.ts` — which closes the raw `kv/` route for that app,
   so its validation can't be bypassed.
+- **Shared look:** `sdk/ui.css` is loaded once by the shell; apps use its tokens and `ui-` classes
+  without importing it. It is all in `@layer`s and app CSS is not, so app rules win without
+  specificity games. Only what two apps already share goes in.
 - **Config layers:** app defaults → instance config → `perUser[id]` (sparse). Size grows with
   users + apps, never users × apps.
 - **No login, three guards** (`server/net.ts`): LAN source IP, Host allowlist against DNS

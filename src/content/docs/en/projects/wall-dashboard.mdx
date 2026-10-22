@@ -55,6 +55,7 @@ dashboard.config.ts   users + enabled apps (sanitized sample, in git)
 dashboard.local.ts    the real one — gitignored, lives only in the CT, wins if present
 sdk/index.ts          #sdk — the app contract: types, defineApp, forUser, secret
 sdk/utils.ts          #sdk/utils — optional helpers: html, raw, $, adoptStyle, pad, every, chime
+sdk/ui.css            the visual contract — theme tokens + ui-btn, ui-chip, ui-input, ui-dialog
 shell/                menubar, user menu, mount/unmount of the active app
 server/main.ts        static files, /api/events (SSE), /api/<app>/kv/<key>, /api/<app>/*
 apps/<id>/            index.ts (typed factory), ui.ts, server.ts, *.test.ts
@@ -75,6 +76,14 @@ merge `forUser` and `secret` — nothing else, so an app in any framework needs 
 **`#sdk/utils`** holds optional helpers for vanilla apps: the escaping `html` tag (+ `raw`), `$` (a
 lookup that throws instead of returning `null`), `adoptStyle`, `pad` and the aligned timers
 `every` / `everyMinute`, and `chime` (a short WebAudio tone).
+
+**`sdk/ui.css`** is the visual contract. The shell loads it once, globally, so apps import nothing
+and work in any framework: they read the theme tokens (`--bg`, `--surface`, `--text`, `--dim`,
+`--accent`, `--radius`, …) and use a few `ui-` classes — `ui-btn` (+ `ui-btn--primary`), `ui-chip`
+(tabs and filters, `aria-pressed`), `ui-input`, `ui-dialog` (native `<dialog>`) and `ui-dim`. All
+of it sits in cascade layers and app CSS doesn't, so an app rule always wins over a shared one:
+`class="ui-btn routine-item"` restyles the button without specificity fights or `!important`. It
+only grows by what two apps already share.
 
 **`server/`** is one Node process with no timers:
 
@@ -230,11 +239,12 @@ Typecheck config changes on the Mac first (`npm --prefix projects/wall-dashboard
    <CodeSnippet file="projects/wall-dashboard/apps/today/index.ts" />
 
 2. **Write `ui.ts`** exporting `mount`. From `#sdk/utils`, use `html` (escapes interpolations,
-   `raw()` for trusted markup) and `adoptStyle` with a CSS file imported as text. Persist with
+   `raw()` for trusted markup) and `adoptStyle` with a CSS file imported as text. Start from the
+   `ui-` classes and tokens of `sdk/ui.css`; the app's CSS adds only its own layout. Persist with
    `ctx.store.set` and react to other screens with `ctx.subscribe` — the lists app does both:
 
-   <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={56} end={65} />
-   <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={90} end={98} />
+   <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={58} end={67} />
+   <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={92} end={99} />
 
 3. **Need secrets, validation or a remote fetch?** Add `server.ts` with a default `Handler` and
    point `server` at it. Omit `label` / `ui` for a server-only app without a menubar entry — the

@@ -20,7 +20,7 @@ export const mount: Mount<ListsConfig> = (el, ctx) => {
             html`<div class="list-tabs">
               ${lists.map((l) =>
                 raw(
-                  html`<button data-list="${l.id}" aria-pressed="${l === active}">
+                  html`<button class="ui-chip" data-list="${l.id}" aria-pressed="${l === active}">
                     ${l.icon ?? ''} ${l.label}
                   </button>`,
                 ),
@@ -30,12 +30,13 @@ export const mount: Mount<ListsConfig> = (el, ctx) => {
         : ''}
       <form class="list-add">
         <input
+          class="ui-input"
           name="text"
           maxlength="200"
           autocomplete="off"
           placeholder="${active.icon ?? ''} ${active.label} …"
         />
-        <button>＋</button>
+        <button class="ui-btn ui-btn--primary">＋</button>
       </form>
       <ul>
         ${[...open, ...done].map((e) =>
@@ -49,7 +50,7 @@ export const mount: Mount<ListsConfig> = (el, ctx) => {
         )}
       </ul>
       ${done.length
-        ? raw(html`<button class="list-clear">Erledigte löschen (${done.length})</button>`)
+        ? raw(html`<button class="ui-chip list-clear">Erledigte löschen (${done.length})</button>`)
         : ''}
     </div>`;
   };

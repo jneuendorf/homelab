@@ -1,39 +1,4 @@
-/* Themes: set `theme` in dashboard.config.ts → <html data-theme="…">. Apps read only these tokens. */
-:root {
-  color-scheme: dark;
-  --bg: #10213f;
-  --surface: #182c50;
-  --text: #f2f5ff;
-  --dim: #9fb3d0;
-  --bright: #ffffff;
-  --accent: #ffcc33;
-  --accent-2: #4fd1c5;
-  --font-size: 26px;
-}
-:root[data-theme='night'] {
-  --bg: #000000;
-  --surface: #120806;
-  --text: #b03a2e;
-  --dim: #5a1e18;
-  --bright: #e06a5a;
-  --accent: #8a2b22;
-  --accent-2: #8a2b22;
-  --font-size: 24px;
-}
-:root[data-theme='contrast'] {
-  --bg: #000000;
-  --surface: #1a1a1a;
-  --text: #ffffff;
-  --dim: #cccccc;
-  --bright: #ffff00;
-  --accent: #00e5ff;
-  --accent-2: #00e5ff;
-  --font-size: 28px;
-}
-
-* {
-  box-sizing: border-box;
-}
+/* Shell layout only. Tokens, base resets and shared components live in sdk/ui.css. */
 html,
 body {
   height: 100%;
@@ -52,12 +17,6 @@ body {
   user-select: none;
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
-}
-button {
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  touch-action: manipulation;
 }
 
 #nav {

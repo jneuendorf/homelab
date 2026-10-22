@@ -46,3 +46,4 @@ await build({
 });
 cpSync('shell/index.html', 'dist/public/index.html');
 cpSync('shell/shell.css', 'dist/public/shell.css');
+cpSync('sdk/ui.css', 'dist/public/ui.css');
