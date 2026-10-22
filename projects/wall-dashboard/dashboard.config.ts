@@ -1,6 +1,7 @@
 // Sanitized sample. On the host: copy to dashboard.local.ts (gitignored, wins if present) and put
 // real names there; secrets go in .env (see secret()). Apps appear in the menubar in this order.
 import { defineDashboard, secret } from '#sdk';
+import { awards } from './apps/awards/index.ts';
 import { calendar } from './apps/calendar/index.ts';
 import { lists } from './apps/lists/index.ts';
 import { routine } from './apps/routine/index.ts';
@@ -86,6 +87,7 @@ export default defineDashboard({
         { id: 'packen', label: 'Packliste', icon: '🧳' },
       ],
     }),
+    awards(),
     weather({ lat: 52.52, lon: 13.41 }),
   ],
 });

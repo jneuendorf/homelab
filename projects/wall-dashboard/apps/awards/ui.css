@@ -1,0 +1,279 @@
+.aw {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
+  max-width: 52em;
+}
+
+/* dialogs: ui-dialog + ui-input/ui-btn; only the form layout is ours */
+.aw-dialog {
+  font-size: 0.8em;
+}
+.aw-dialog label,
+.aw-dialog fieldset {
+  display: block;
+  margin: 0.45em 0;
+}
+.aw-dialog input[type='number'] {
+  width: 4em;
+}
+.aw-dialog .aw-emoji,
+.aw-dialog [name='cp-icon'],
+.aw-dialog [name='m-icon'] {
+  width: 3em;
+  text-align: center;
+}
+.aw-row {
+  display: flex;
+  gap: 0.3em;
+  margin: 0.25em 0;
+}
+.aw-row [name='cp-label'],
+.aw-row [name='m-label'] {
+  flex: 1;
+}
+.aw-dialog footer button:first-child {
+  margin-right: auto;
+}
+.aw-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 3.2em);
+  gap: 0.4em;
+  font-size: 1.4em;
+}
+.aw-keypad button {
+  height: 2.4em;
+}
+.aw-entry,
+.aw-keypad .aw-wide {
+  grid-column: span 3;
+  text-align: center;
+}
+.aw-trophy {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0.3em 0;
+}
+.aw-trophy .aw-icon {
+  font-size: 1.8em;
+}
+.aw-trophy small {
+  margin-left: auto;
+  color: var(--dim);
+}
+
+/* track: a rocket flies past checkpoint planets to the goal planet */
+.aw-track {
+  display: grid;
+  grid-template-columns: 6.5em 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 1em;
+  align-items: center;
+}
+.aw-who {
+  grid-row: span 2;
+  color: var(--child);
+  font-weight: bold;
+  line-height: 1.1;
+}
+.aw-avatar {
+  display: block;
+  font-size: 1.8em;
+}
+.aw-streak {
+  display: inline-block;
+  font-size: 0.85em;
+  color: var(--accent);
+}
+.aw-lane {
+  position: relative;
+  height: 2.6em;
+  margin: 0 1.3em 0 0.4em;
+  border-radius: 1.3em;
+  background: color-mix(in srgb, var(--child) 12%, var(--surface));
+}
+.aw-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 1.3em;
+  background: color-mix(in srgb, var(--child) 45%, transparent);
+  transition: width 0.8s ease-out;
+}
+.aw-planet,
+.aw-rocket {
+  position: absolute;
+  top: 50%;
+  translate: -50% -50%;
+  font-size: 1.6em;
+  line-height: 1;
+  transition: left 0.8s ease-out;
+}
+.aw-planet {
+  filter: grayscale(1) opacity(0.55);
+  text-align: center;
+}
+.aw-planet.got {
+  filter: none;
+}
+.aw-planet small {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  translate: -50% 0.05em;
+  font-size: 0.4em;
+  color: var(--dim);
+}
+.aw-goal {
+  font-size: 2.2em;
+}
+.aw-rocket {
+  rotate: 45deg; /* 🚀 points up-right; turn it to fly right */
+  z-index: 1;
+}
+.aw-meta {
+  font-size: 0.8em;
+  color: var(--dim);
+}
+.aw-meta b {
+  color: var(--text);
+  font-size: 1.3em;
+}
+.aw-track.reached .aw-goal {
+  animation: aw-pop 0.6s ease 3;
+}
+
+/* missions */
+.aw-missions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+.aw-mission {
+  flex-direction: column;
+  min-width: 5.5em;
+  padding: 0.35em 0.6em;
+  font-size: 0.85em;
+}
+.aw-mission .aw-icon {
+  font-size: 2em;
+  line-height: 1.1;
+}
+.aw-mission small {
+  font-size: 0.7em;
+}
+.aw-mission.picking {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.aw-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+}
+.aw-pick button {
+  border-color: var(--child, var(--dim));
+  color: var(--child, var(--text));
+  font-size: 1.1em;
+}
+
+/* pending stars */
+.aw-pending {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.85em;
+}
+/* a ui-chip with a dashed border: not counted yet */
+.aw-chip {
+  padding: 0.1em 0.2em 0.1em 0.6em;
+  border: var(--border) dashed var(--child);
+  color: var(--text);
+}
+.aw-chip button {
+  padding: 0 0.4em;
+}
+
+/* weekly grid, like the paper sheet */
+.aw-week {
+  border-collapse: collapse;
+  font-size: 0.7em;
+}
+.aw-week th,
+.aw-week td {
+  padding: 0.15em 0.4em;
+  border-bottom: 1px solid color-mix(in srgb, var(--dim) 30%, transparent);
+  text-align: left;
+  white-space: nowrap;
+}
+.aw-week td {
+  min-width: 3.5em;
+}
+.aw-week .today {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.aw-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5em;
+  font-size: 0.8em;
+}
+
+/* celebrations: fixed layer, removed by JS after --ms */
+.aw-party {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+.aw-party span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  font-size: 2em;
+  animation: aw-burst var(--ms) ease-out forwards;
+}
+.aw-party.goal span {
+  font-size: 3em;
+}
+.aw-banner {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  translate: -50% -50%;
+  max-width: 90vw;
+  padding: 0.5em 1em;
+  border-radius: 1em;
+  background: var(--surface);
+  border: 3px solid var(--accent);
+  font-size: 1.4em;
+  font-weight: bold;
+  text-align: center;
+  animation: aw-pop 0.6s ease;
+}
+.aw-party.goal .aw-banner {
+  font-size: 2em;
+}
+@keyframes aw-burst {
+  from {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 1;
+  }
+  to {
+    transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.2) rotate(180deg);
+    opacity: 0;
+  }
+}
+@keyframes aw-pop {
+  40% {
+    scale: 1.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aw-party span {
+    display: none;
+  }
+}

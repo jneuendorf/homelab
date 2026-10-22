@@ -1,6 +1,6 @@
 ---
 title: Wall Dashboard
-description: An always-on family screen on a wall-mounted tablet — clock, weather, calendars, routines, and shared lists — served by a small own Node shell in an unprivileged LXC.
+description: An always-on family screen on a wall-mounted tablet — clock, weather, calendars, routines, a star chart, and shared lists — served by a small own Node shell in an unprivileged LXC.
 order: 10
 ---
 
@@ -9,9 +9,9 @@ import CodeSnippet from '../../../../components/CodeSnippet.astro';
 # Wall Dashboard
 
 A **fixed, wall-mounted tablet** showing a family screen: a left **app menubar** (Today, Calendar,
-Routine, Lists), a top-right **user switcher**, and apps that can **read and write** data. It is a
-small own shell in `projects/wall-dashboard/` — Node ≥ 22.18, no framework, no build for the server —
-because it runs 24/7 and idle power matters.
+Routine, Lists, Stars), a top-right **user switcher**, and apps that can **read and write** data. It
+is a small own shell in `projects/wall-dashboard/` — Node ≥ 22.18, no framework, no build for the
+server — because it runs 24/7 and idle power matters.
 
 > **Prerequisites:** a working Proxmox host
 > ([Installing & Hardening Proxmox](/en/01-proxmox-install-harden)), and an understanding of the
@@ -90,8 +90,8 @@ only grows by what two apps already share.
 - **`main.ts`** serves the built files from `dist/public`, the SSE stream `/api/events`, a
   per-app key/value store `/api/<app>/kv/<key>` (SQLite; every write is broadcast over SSE), and
   forwards `/api/<app>/*` to that app's `server.ts` as a web-standard `Request`. An app with a
-  `server.ts` owns its storage: the raw `kv/` route is closed for it, so its validation can't be
-  bypassed.
+  `server.ts` owns its storage: the raw `kv/` route is closed for it, so its validation (and PIN)
+  can't be bypassed.
 - **`config.ts`** loads `dashboard.local.ts` if present, else the sanitized `dashboard.config.ts`.
 - **`net.ts`** holds the request guards (see [Security](#security)).
 
@@ -118,8 +118,9 @@ inject HTML. Calendar URLs stay in `.env` and are only read server-side.
   restrict access at the proxy.
 - `dashboard.local.ts` is **bundled into the browser** too: never put a token in it as a literal,
   always `secret('NAME')`.
-- Any LAN device can read and write all app data by design; plain HTTP until the reverse proxy
-  adds TLS.
+- The star chart's parent actions need `AWARDS_PIN` (server-side; 5 misses lock it for a minute).
+- Any LAN device can otherwise read and write all app data by design; plain HTTP until the reverse
+  proxy adds TLS.
 
 ## The app contract
 
@@ -153,7 +154,7 @@ One typed file lists users and apps; menubar order = array order. The repo holds
 sample**; the real one is `dashboard.local.ts` next to it, gitignored and only in the CT. Calendar
 URLs carry tokens, so they come from `.env` via `secret()`:
 
-<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={10} end={31} />
+<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={11} end={32} />
 
 `theme` is `kids`, `night` or `contrast`. The config is bundled into the browser too, so **edits
 need a rebuild** — re-run `install-shell.sh` (below) after changing it.
@@ -173,10 +174,31 @@ shared helpers.
 `ctx.calendar` holds today's events (this user's + family-wide, incl. `location`); `ctx.weather`
 the day parts from the weather app. A dynamic child from the sample:
 
-<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={48} end={79} />
+<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={49} end={80} />
 
 Done-state is keyed by item **label**, so a callback can add or drop items without scrambling
 checkmarks — keep labels unique per user. Badge ideas: [emojis.wiki/success](https://emojis.wiki/success/).
+
+## Star chart (awards)
+
+The paper star chart, digital. A kid taps a **mission** — a dashed "waiting" star appears — and a
+parent confirms it after **🔒 Eltern** + PIN. Parent mode also gives bonus stars ("Anderes"), edits
+missions and sets goals, all on the tablet; it locks itself after 5 minutes.
+
+- **Goals** per child and one for the family, independent of each other: a target, a date range
+  (1 week / 2 weeks / 1 month buttons), a final reward, optional **checkpoints** (planets on the
+  rocket's track, each with its own reward) and an optional **streak bonus** (every _n_ days in a
+  row with a star → +_m_).
+- **Who a mission counts for:** `ich` (only the doer — "Zimmer aufräumen"), `beide` (the doer and
+  the family goal — any family chore someone pulls, "Spülmaschine ausräumen"), `familie` (only the
+  family goal — a joint "Alles aufgeräumt").
+- **Celebrations** only when stars are confirmed: a small burst per star, a banner at a checkpoint,
+  a full-screen party at the goal — on every screen, via SSE.
+- A reached or expired goal moves to the **🏆 trophy shelf** when the next one starts;
+  **↺ Wie letztes Ziel** pre-fills it from the previous one. A selected kid also sees the
+  Mon–Sun grid of the paper sheet.
+
+`missions` in the config only seeds an empty store; `AWARDS_PIN` goes in `.env`.
 
 ## iCloud calendar — read-only ICS
 
@@ -211,8 +233,11 @@ First deploy only — put the real config and secrets in place, then re-run `ins
 ```bash
 # (host)
 pct exec 101 -- cp /opt/wall-dashboard/dashboard.config.ts /opt/wall-dashboard/dashboard.local.ts
-pct exec 101 -- sh -c 'printf "CAL_KIND1=https://…\n" > /opt/wall-dashboard/.env && chmod 600 /opt/wall-dashboard/.env'
+pct exec 101 -- sh -c 'printf "CAL_KIND1=https://…\nAWARDS_PIN=…\n" > /opt/wall-dashboard/.env && chmod 600 /opt/wall-dashboard/.env'
 ```
+
+Already deployed? Append the PIN instead of overwriting `.env`:
+`pct exec 101 -- sh -c 'echo AWARDS_PIN=… >> /opt/wall-dashboard/.env'`.
 
 The calendar's "today" is the CT's local day — check its timezone (`timedatectl`). Logs:
 `pct exec 101 -- journalctl -u wall-dashboard -f`.
