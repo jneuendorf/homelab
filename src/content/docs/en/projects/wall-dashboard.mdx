@@ -80,7 +80,9 @@ lookup that throws instead of returning `null`), `adoptStyle`, `pad` and the ali
 
 - **`main.ts`** serves the built files from `dist/public`, the SSE stream `/api/events`, a
   per-app key/value store `/api/<app>/kv/<key>` (SQLite; every write is broadcast over SSE), and
-  forwards `/api/<app>/*` to that app's `server.ts` as a web-standard `Request`.
+  forwards `/api/<app>/*` to that app's `server.ts` as a web-standard `Request`. An app with a
+  `server.ts` owns its storage: the raw `kv/` route is closed for it, so its validation can't be
+  bypassed.
 - **`config.ts`** loads `dashboard.local.ts` if present, else the sanitized `dashboard.config.ts`.
 - **`net.ts`** holds the request guards (see [Security](#security)).
 

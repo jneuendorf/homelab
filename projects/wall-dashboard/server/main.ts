@@ -95,8 +95,10 @@ const events = (req: IncomingMessage, res: ServerResponse) => {
 const api = async (req: IncomingMessage, res: ServerResponse, appId: string, path: string) => {
   const app = apps.get(appId);
   if (!app) return send(res, 404, 'unknown app');
+  const handler = handlers.get(appId);
 
-  if (path.startsWith('kv/')) {
+  // An app with a server handler owns its storage (validation, PINs): no raw kv writes around it.
+  if (path.startsWith('kv/') && !handler) {
     const key = decodeURIComponent(path.slice(3));
     if (!/^[\w:.-]{1,200}$/.test(key)) return send(res, 400, 'bad key');
     const store = storeFor(appId);
@@ -108,7 +110,6 @@ const api = async (req: IncomingMessage, res: ServerResponse, appId: string, pat
     return send(res, 405, 'method not allowed');
   }
 
-  const handler = handlers.get(appId);
   if (!handler) return send(res, 404, 'not found');
   const headers = new Headers();
   for (const [name, value] of Object.entries(req.headers))

@@ -46,7 +46,8 @@ build.ts               per-app `npm run build` (if any) → esbuild shell bundle
 - **Server contract:** `(req: Request, ctx) => Response` — web standard, framework-free.
 - **Generic store:** every app gets `ctx.store.get/set` (sqlite via `node:sqlite`) over
   `/api/<app>/kv/<key>`; a `set` is pushed to all screens over SSE (`ctx.subscribe(key)`). Apps
-  needing validation/atomic ops add a `server.ts`.
+  needing validation/atomic ops add a `server.ts` — which closes the raw `kv/` route for that app,
+  so its validation can't be bypassed.
 - **Config layers:** app defaults → instance config → `perUser[id]` (sparse). Size grows with
   users + apps, never users × apps.
 - **No login, three guards** (`server/net.ts`): LAN source IP, Host allowlist against DNS
