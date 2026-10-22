@@ -54,7 +54,7 @@ second, everything else per minute; no CSS animations at rest; dark themes.
 dashboard.config.ts   users + enabled apps (sanitized sample, in git)
 dashboard.local.ts    the real one — gitignored, lives only in the CT, wins if present
 sdk/index.ts          #sdk — the app contract: types, defineApp, forUser, secret
-sdk/utils.ts          #sdk/utils — optional helpers: html, raw, $, adoptStyle, pad, every
+sdk/utils.ts          #sdk/utils — optional helpers: html, raw, $, adoptStyle, pad, every, chime
 shell/                menubar, user menu, mount/unmount of the active app
 server/main.ts        static files, /api/events (SSE), /api/<app>/kv/<key>, /api/<app>/*
 apps/<id>/            index.ts (typed factory), ui.ts, server.ts, *.test.ts
@@ -74,7 +74,7 @@ both the server and the browser bundle: the types, `defineApp` / `defineDashboar
 merge `forUser` and `secret` — nothing else, so an app in any framework needs only this.
 **`#sdk/utils`** holds optional helpers for vanilla apps: the escaping `html` tag (+ `raw`), `$` (a
 lookup that throws instead of returning `null`), `adoptStyle`, `pad` and the aligned timers
-`every` / `everyMinute`.
+`every` / `everyMinute`, and `chime` (a short WebAudio tone).
 
 **`server/`** is one Node process with no timers:
 

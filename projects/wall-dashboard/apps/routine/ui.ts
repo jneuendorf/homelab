@@ -1,5 +1,5 @@
 import type { Mount, User } from '#sdk';
-import { $, adoptStyle, everyMinute, html, pad, raw } from '#sdk/utils';
+import { $, adoptStyle, chime, everyMinute, html, pad, raw } from '#sdk/utils';
 import { fetchEvents, type CalendarEvent } from '../calendar/index.ts';
 import { fetchWeather, type Weather } from '../weather/index.ts';
 import type { RoutineConfig, RoutineCtx } from './index.ts';
@@ -99,7 +99,7 @@ export const mount: Mount<RoutineConfig> = (el, ctx) => {
     if (!label || !row) return;
     const { state: next, change } = toggle(state[row.user.id], label, row.items, Date.now());
     state = { ...state, [row.user.id]: next };
-    if (row.config.sound) ding(change === 'completed');
+    if (row.config.sound) chime(change === 'completed' ? [523, 659, 784, 1047] : [880]);
     render();
     ctx.store.set(key, state);
   };
@@ -137,26 +137,4 @@ export const mount: Mount<RoutineConfig> = (el, ctx) => {
     load();
   });
   return stop;
-};
-
-let audio: AudioContext | undefined;
-const ding = (fanfare: boolean) => {
-  try {
-    audio ??= new AudioContext();
-    const ac = audio; // narrowed here; the closure below would widen `audio` again
-    (fanfare ? [523, 659, 784, 1047] : [880]).forEach((frequency, i) => {
-      const osc = ac.createOscillator();
-      const gain = ac.createGain();
-      osc.frequency.value = frequency;
-      osc.connect(gain).connect(ac.destination);
-      const t = ac.currentTime + i * 0.12;
-      gain.gain.setValueAtTime(0.0001, t);
-      gain.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
-      osc.start(t);
-      osc.stop(t + 0.27);
-    });
-  } catch {
-    // audio not allowed before the first tap
-  }
 };

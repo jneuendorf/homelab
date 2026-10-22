@@ -70,3 +70,26 @@ export const every = (ms: number, fn: () => void) => {
   return () => clearTimeout(timer);
 };
 export const everyMinute = (fn: () => void) => every(60_000, fn);
+
+let audio: AudioContext | undefined;
+/** Short sine notes (Hz), 120 ms apart — e.g. [880] for a tick, a rising run for a fanfare. */
+export const chime = (frequencies: number[]) => {
+  try {
+    audio ??= new AudioContext();
+    const ac = audio; // narrowed here; the closure below would widen `audio` again
+    frequencies.forEach((frequency, i) => {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.frequency.value = frequency;
+      osc.connect(gain).connect(ac.destination);
+      const t = ac.currentTime + i * 0.12;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.26);
+      osc.start(t);
+      osc.stop(t + 0.27);
+    });
+  } catch {
+    // audio not allowed before the first tap
+  }
+};
