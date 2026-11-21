@@ -4,13 +4,14 @@
   gap: 0.45em;
   max-width: 48em;
   font-size: 1.05em;
+  container-type: inline-size;
 }
 
 .routine-row {
   display: flex;
   align-items: center;
   gap: 0.7em;
-  border-top: 2px solid var(--child);
+  border-top: 2px solid var(--user);
   padding-top: 0.3em;
 }
 .routine-row.done {
@@ -24,7 +25,7 @@
   min-width: 3.4em;
 }
 .routine-name {
-  color: var(--child);
+  color: var(--user);
   font-weight: bold;
   font-size: 1.2em;
   line-height: 1.05;
@@ -67,8 +68,8 @@
 }
 
 .routine-item.checked {
-  border-color: var(--child);
-  background: color-mix(in srgb, var(--child) 22%, transparent);
+  border-color: var(--user);
+  background: color-mix(in srgb, var(--user) 22%, transparent);
   animation: ri-pop 0.3s ease;
 }
 .routine-item.checked .ri-label {
@@ -85,7 +86,7 @@
   line-height: 1.3em;
   text-align: center;
   border-radius: 50%;
-  background: var(--child);
+  background: var(--user);
   color: #fff;
   font-size: 0.85em;
   font-weight: bold;
@@ -99,6 +100,22 @@
   }
   100% {
     transform: scale(1);
+  }
+}
+
+/* One line per user: the row's font shrinks with the width and the item count (--n, set inline),
+   so chips never wrap into a lonely last one. Per item ≈ 7em incl. gap, name + badge ≈ 9em.
+   Without container units (iPadOS < 16) chips wrap as before. */
+@supports (width: 1cqi) {
+  .routine-row {
+    font-size: min(1em, calc(100cqi / (var(--n) * 7 + 9)));
+  }
+  .routine-items {
+    flex-wrap: nowrap;
+  }
+  .routine-item {
+    flex: 1 1 0;
+    min-width: 0;
   }
 }
 

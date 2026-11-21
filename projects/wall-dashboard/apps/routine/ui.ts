@@ -64,7 +64,7 @@ export const mount: Mount<RoutineConfig> = (el, ctx) => {
         return raw(
           html`<div
             class="routine-row ${s?.completedAt ? 'done' : ''}"
-            style="--child:${user.color}"
+            style="--user:${user.color};--n:${items.length}"
           >
             <div class="routine-label">
               <span class="routine-name">${user.name}</span>
