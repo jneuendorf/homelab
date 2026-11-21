@@ -9,7 +9,7 @@ warn(){ printf '\033[1;33m[!]\033[0m %s\n' "$*"; }
 CTID="${1:?usage: create-lxc.sh <CTID> <hostname> [cores] [mem_mb] [disk_gb]}"
 HOST="${2:?usage: create-lxc.sh <CTID> <hostname> [cores] [mem_mb] [disk_gb]}"
 CORES="${3:-1}"; MEM="${4:-512}"; DISK="${5:-8}"
-TEMPLATE_NAME="debian-12-standard"   # bump when a newer standard template lands (pveam available --section system)
+TEMPLATE_NAME="debian-13-standard"   # bump when a newer standard template lands (pveam available --section system)
 STORAGE_TMPL="local"                 # where templates are stored
 STORAGE_ROOT="local-zfs"             # CT rootfs storage (Proxmox default guest storage)
 
@@ -20,7 +20,8 @@ fi
 
 log "refreshing template catalog"
 pveam update >/dev/null
-TMPL="$(pveam available --section system | awk -v n="$TEMPLATE_NAME" '$2 ~ n {print $2}' | sort -V | tail -1)"
+ARCH="$(dpkg --print-architecture)"  # the catalog lists amd64 and arm64 builds side by side
+TMPL="$(pveam available --section system | awk -v n="$TEMPLATE_NAME" -v a="_$ARCH." '$2 ~ n && index($2, a) {print $2}' | sort -V | tail -1)"
 [ -n "$TMPL" ] || { warn "no '$TEMPLATE_NAME' template in the catalog"; exit 1; }
 if ! pveam list "$STORAGE_TMPL" | grep -q "$TMPL"; then
   log "downloading template $TMPL"
@@ -33,6 +34,6 @@ pct create "$CTID" "${STORAGE_TMPL}:vztmpl/${TMPL}" \
   --cores "$CORES" --memory "$MEM" --swap "$MEM" \
   --rootfs "${STORAGE_ROOT}:${DISK}" \
   --net0 name=eth0,bridge=vmbr0,ip=dhcp \
-  --unprivileged 1 --onboot 1
+  --unprivileged 1 --features nesting=1 --onboot 1 --timezone host
 
 log "created CT $CTID. next: pct start $CTID · pct enter $CTID · then bind-mounts + app install"
