@@ -106,7 +106,8 @@ There is no login: the screen is a shared kiosk. Instead every request passes th
 | `isAllowedHost(Host)` — IP literal, localhost, `WALL_HOSTS` | **DNS rebinding**: a web page opened on any LAN device points its own domain at the CT and would otherwise use the API as same-origin |
 | `isSameOrigin(Origin)` on non-GET                           | **CSRF**: a foreign page posting a form to an app handler                                                                             |
 
-Responses carry a CSP (`default-src 'self'`, no framing), `nosniff` and `no-referrer`; 500s send no
+Responses carry a CSP (`default-src 'self'`, no framing; `media-src` adds only the radio stations'
+hosts), `nosniff` and `no-referrer`; 500s send no
 error details. All markup goes through `html` (escaping), so feed titles and list entries can't
 inject HTML. Calendar URLs stay in `.env` and are only read server-side.
 
@@ -115,7 +116,7 @@ inject HTML. Calendar URLs stay in `.env` and are only read server-side.
   restrict access at the proxy.
 - `dashboard.local.ts` is **bundled into the browser** too: never put a token in it as a literal,
   always `secret('NAME')`.
-- Parent-only actions (stars) need `ADMIN_PIN`, checked server-side; 5 misses
+- Parent-only actions (stars, radio stations) need `ADMIN_PIN`, checked server-side; 5 misses
   lock it for a minute. The old name `AWARDS_PIN` is still read.
 - Any LAN device can otherwise read and write all app data by design; plain HTTP until the reverse
   proxy adds TLS.
@@ -208,6 +209,27 @@ parent confirms it in the admin (**Eltern**) view (unlocked with the PIN). It al
   Mon–Sun grid of the paper sheet.
 
 `missions` in the config only seeds an empty store.
+
+## Radio
+
+Big station tiles: tap to play, tap again (or the floating **⏹** in any app) to stop — it keeps
+playing while the kids switch apps. Defaults: Radio Teddy, Die Maus (WDR), TOGGO Radio and Radio
+Teddy's _Gute Nacht_ channel.
+
+In the admin (**Eltern**) view each tile gets an **✕** and a form takes icon, name and a stream URL.
+The URL must be a direct **https** MP3/AAC stream (not an `.m3u`/`.pls` playlist or HLS);
+[radio-browser.info](https://www.radio-browser.info/) lists them. The server fetches it once,
+follows the redirects and stores every host it hit. Redirect targets are stored as their parent
+domain (`f111.rndfnk.com` → `*.rndfnk.com`), since stream CDNs rotate servers. Only those hosts end
+up in the CSP's `media-src`, so nothing else can be played. Other screens still have the old CSP:
+the first tap on a new station reloads the page once and then plays it.
+
+The parent-domain guess has no public-suffix list (`tldts` would bring one, but it's big), so it
+errs on the strict side: a CDN that rotates a deeper label (`edge1.fra.cdn.net` →
+`edge2.ams.cdn.net`) gets blocked. The tile then says _nicht erreichbar_, and the Eltern view
+explains that the domain check is the likely cause.
+
+`stations` in the config only seeds an empty store; each needs its `hosts` (see the defaults).
 
 ## iCloud calendar — read-only ICS
 

@@ -4,6 +4,7 @@ import { defineDashboard, secret } from '#sdk';
 import { awards } from './apps/awards/index.ts';
 import { calendar } from './apps/calendar/index.ts';
 import { lists } from './apps/lists/index.ts';
+import { radio } from './apps/radio/index.ts';
 import { routine } from './apps/routine/index.ts';
 import { today } from './apps/today/index.ts';
 import { weather } from './apps/weather/index.ts';
@@ -88,6 +89,7 @@ export default defineDashboard({
       ],
     }),
     awards(),
+    radio(),
     weather({ lat: 52.52, lon: 13.41 }),
   ],
 });

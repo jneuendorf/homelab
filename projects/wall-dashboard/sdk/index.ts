@@ -78,6 +78,9 @@ export type AppDef<C> = {
   defaults: C;
   ui?: () => Promise<{ mount: Mount<C> }>;
   server?: () => Promise<{ default: Handler<C> }>;
+  /** Server: extra CSP sources per directive, e.g. { 'media-src': ['https://radio.example'] }.
+   *  Read on every request, so it can follow what admins stored. */
+  csp?: (ctx: Pick<ServerContext<C>, 'config' | 'store'>) => Record<string, string[]>;
 };
 
 // biome-ignore lint/suspicious/noExplicitAny: dashboard.apps mixes apps with different config types

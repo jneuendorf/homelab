@@ -48,7 +48,7 @@ build.ts               per-app `npm run build` (if any) → esbuild shell bundle
 - **Generic store:** every app gets `ctx.store.get/set` (sqlite via `node:sqlite`) over
   `/api/<app>/kv/<key>`; a `set` is pushed to all screens over SSE (`ctx.subscribe(key)`). Apps
   needing validation/atomic ops add a `server.ts` — which closes the raw `kv/` route for that app
-  (e.g. awards: parent-only actions).
+  (e.g. awards, radio: parent-only actions).
 - **Admin = PIN, not login:** picking an admin user asks for `ADMIN_PIN` (`server/admin.ts`, 5
   misses → 1 min lock). The shell keeps it in memory only, sends it as `x-pin` with every app
   request while unlocked, and the server turns it into `ctx.admin` for handlers. Locks after 5 idle
@@ -61,6 +61,9 @@ build.ts               per-app `npm run build` (if any) → esbuild shell bundle
 - **No login, three guards** (`server/net.ts`): LAN source IP, Host allowlist against DNS
   rebinding (IP literals, localhost, `WALL_HOSTS`), same-Origin for writes against CSRF; plus a
   strict CSP. Any LAN device may read/write all app data by design.
+- **CSP from app data:** an app may add sources per directive via `csp({config, store})`, read on
+  every request. Radio uses it so `media-src` lists only the stored stations' hosts (and their
+  redirect domains, learned by the server when a station is added) instead of `https:`.
 - **Secrets:** `secret('NAME')` reads `process.env` on the server and is `undefined` in the browser
   bundle — only the variable name ships to the client.
 

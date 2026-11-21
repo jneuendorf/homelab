@@ -18,10 +18,16 @@ const hostNames = (process.env.WALL_HOSTS ?? '')
   .split(',')
   .map((name) => name.trim().toLowerCase())
   .filter(Boolean);
+const baseCsp: Record<string, string[]> = {
+  'default-src': ["'self'"],
+  'style-src': ["'self'", "'unsafe-inline'"],
+  'img-src': ["'self'", 'data:'],
+  'media-src': ["'self'"],
+  'base-uri': ["'none'"],
+  'form-action': ["'self'"],
+  'frame-ancestors': ["'none'"],
+};
 const securityHeaders = {
-  'content-security-policy':
-    "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
-    "base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'no-referrer',
 };
@@ -60,6 +66,20 @@ const apps = new Map(dashboard.apps.map((app) => [app.id, app]));
 const handlers = new Map<string, Handler<any>>();
 for (const app of dashboard.apps)
   if (app.server) handlers.set(app.id, (await app.server()).default);
+
+// ponytail: rebuilt per request (one sqlite read per app with csp); cache by store write if it shows up
+const contentSecurityPolicy = () => {
+  const csp = structuredClone(baseCsp);
+  for (const app of dashboard.apps)
+    for (const [directive, sources] of Object.entries(
+      app.csp?.({ config: app.config, store: storeFor(app.id) }) ?? {},
+    ))
+      // app sources may come from stored data: nothing that could end a directive or the header
+      csp[directive] = [...(csp[directive] ?? []), ...sources.filter((s) => /^[^\s;,]+$/.test(s))];
+  return Object.entries(csp)
+    .map(([directive, sources]) => [directive, ...new Set(sources)].join(' '))
+    .join('; ');
+};
 
 const types: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -164,6 +184,7 @@ createServer(async (req, res) => {
   if (write && !isSameOrigin(req.headers.origin, req.headers.host))
     return send(res, 403, 'cross-origin write');
   for (const [name, value] of Object.entries(securityHeaders)) res.setHeader(name, value);
+  res.setHeader('content-security-policy', contentSecurityPolicy());
   const { pathname } = new URL(req.url ?? '/', 'http://localhost');
   try {
     if (pathname === '/api/events') return events(req, res);
