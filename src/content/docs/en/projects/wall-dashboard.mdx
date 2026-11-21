@@ -17,9 +17,6 @@ server — because it runs 24/7 and idle power matters.
 > ([Installing & Hardening Proxmox](/en/01-proxmox-install-harden)), and an understanding of the
 > [LXC-vs-VM decision](/en/01-proxmox-install-harden#two-guest-types--pick-well).
 
-> **Transition:** the old MagicMirror setup (`config/`, `modules/`, `install.sh`) still runs on
-> **:8080** in the same CT until the shell reaches parity; the shell runs beside it on **:8090**.
-
 ## Why an own shell (not Home Assistant)
 
 Home Assistant covers most widgets, but three goals tipped it:
@@ -46,7 +43,7 @@ second, everything else per minute; no CSS animations at rest; dark themes.
 | Needs Docker?                | **No**               | Plain Node app with one runtime dependency (`ical.js`).                    |
 | Wants host bind-mount?       | **No**               | Calendars come over the network (ICS); state is one SQLite file in the CT. |
 | Hard isolation / own kernel? | **No**               | Internal, low-risk display app.                                            |
-| **Result**                   | **unprivileged LXC** | Reuses CT 101 (created by the MagicMirror community-script).               |
+| **Result**                   | **unprivileged LXC** | CT 101 (Debian 13, 1 core / 512 MB / 4 G), serving on :8080.               |
 
 ## Layout
 
@@ -128,7 +125,7 @@ An app is one folder. Its `index.ts` calls `defineApp`, which turns a definition
 label, defaults, lazy `ui` / `server` imports) into a **typed factory**: `routine({ deadline:
 '07:40' })`. The server never loads UI code, and the browser only loads the active app's chunk.
 
-<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={48} end={69} />
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={68} end={89} />
 
 - **UI:** `mount(el, ctx)` draws into `el` and returns a cleanup. Vanilla, React (`createRoot(el)`)
   or Svelte all fit; TS needs no per-app build (esbuild bundles it).
@@ -137,7 +134,7 @@ label, defaults, lazy `ui` / `server` imports) into a **typed factory**: `routin
 - **Store:** every app gets `ctx.store.get/set` (SQLite via `node:sqlite`). Each `set` is pushed to
   all screens; `ctx.subscribe(key, cb)` listens and is removed on unmount.
 
-<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={14} end={32} />
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={30} end={51} />
 
 - **Per-user config:** layers are app defaults → instance config → `perUser[id]` (sparse,
   shallow). `ctx.config` is already resolved for the selected user; `ctx.configFor(id)` serves apps
@@ -146,7 +143,7 @@ label, defaults, lazy `ui` / `server` imports) into a **typed factory**: `routin
   browser bundle — only the variable name ships to the client. Server code (`server.ts`) is
   stubbed out of the bundle entirely.
 
-<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={81} end={89} />
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={109} end={117} />
 
 ## Config
 
@@ -156,23 +153,31 @@ URLs carry tokens, so they come from `.env` via `secret()`:
 
 <CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={11} end={32} />
 
+**Users** are **members** — kids or adults, the apps don't care — plus at least one **admin**.
+`defineDashboard` adds a default admin, _Eltern_, unless a user has `admin: true`. Selecting an
+admin shows everyone (like _Alle_) and the apps' settings; apps get `ctx.admin` and only the
+members in `ctx.users` (`membersOf(users)` on the server). Selecting is no login: settings that matter stay behind the
+PIN.
+
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={4} end={20} />
+
 `theme` is `kids`, `night` or `contrast`. The config is bundled into the browser too, so **edits
 need a rebuild** — re-run `install-shell.sh` (below) after changing it.
 
 ## Routine callbacks
 
-The morning checklist shows one row per user with non-empty `items`; parents without items get no
-row. Tap to check off; state lives in the server store, so every screen agrees, and it resets per
-day. First to finish gets the `leader` badge, finishing before `deadline` adds `beatDeadline`.
+The morning checklist shows one row per member with non-empty `items`. Each row stays on one line:
+its font shrinks with the screen width and the item count (container units; on iPadOS < 16 the
+chips wrap instead). Tap to check off; state lives in the server store, so every screen agrees, and
+it resets per day. First to finish gets the `leader` badge, finishing before `deadline` adds `beatDeadline`.
 
 Per user, `items` and `badges` are a plain value **or** a `(ctx) => value` callback. Callbacks run
-in the browser and are bundled, so — unlike MagicMirror's serialized callbacks — they may import
-shared helpers.
+in the browser and are bundled, so they may import shared helpers.
 
 <CodeSnippet file="projects/wall-dashboard/apps/routine/index.ts" start={22} end={40} />
 
 `ctx.calendar` holds today's events (this user's + family-wide, incl. `location`); `ctx.weather`
-the day parts from the weather app. A dynamic child from the sample:
+the day parts from the weather app. A dynamic user from the sample:
 
 <CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={49} end={80} />
 
@@ -181,11 +186,11 @@ checkmarks — keep labels unique per user. Badge ideas: [emojis.wiki/success](h
 
 ## Star chart (awards)
 
-The paper star chart, digital. A kid taps a **mission** — a dashed "waiting" star appears — and a
-parent confirms it after **🔒 Eltern** + PIN. Parent mode also gives bonus stars ("Anderes"), edits
+The paper star chart, digital. A member taps a **mission** — a dashed "waiting" star appears — and a
+parent confirms it in the admin (**Eltern**) view after **🔒 Entsperren** + PIN. Parent mode also gives bonus stars ("Anderes"), edits
 missions and sets goals, all on the tablet; it locks itself after 5 minutes.
 
-- **Goals** per child and one for the family, independent of each other: a target, a date range
+- **Goals** per member and one for the family, independent of each other: a target, a date range
   (1 week / 2 weeks / 1 month buttons), a final reward, optional **checkpoints** (planets on the
   rocket's track, each with its own reward) and an optional **streak bonus** (every _n_ days in a
   row with a star → +_m_).
@@ -195,7 +200,7 @@ missions and sets goals, all on the tablet; it locks itself after 5 minutes.
 - **Celebrations** only when stars are confirmed: a small burst per star, a banner at a checkpoint,
   a full-screen party at the goal — on every screen, via SSE.
 - A reached or expired goal moves to the **🏆 trophy shelf** when the next one starts;
-  **↺ Wie letztes Ziel** pre-fills it from the previous one. A selected kid also sees the
+  **↺ Wie letztes Ziel** pre-fills it from the previous one. A selected member also sees the
   Mon–Sun grid of the paper sheet.
 
 `missions` in the config only seeds an empty store; `AWARDS_PIN` goes in `.env`.
@@ -212,23 +217,42 @@ Each feed needs a public ICS URL in its **`https://`** form (not webcal):
 A feed with `user` belongs to that user (their color, their routine `ctx`); without `user` it is
 family-wide and shown to everyone.
 
-## Deploy from this repo
+## Set up the LXC and deploy
+
+One script does it all, the way a Proxmox community script does — but from this repo, so you can
+read every line first. On a fresh host it creates the CT; after that the same command updates it.
 
 ```bash
 # (Mac) — sync the repo to the host
 scripts/deploy.sh root@192.168.1.10
 
-# (host) — push the shell into CT 101, build it there, (re)start the service
+# (host) — create CT 101 if missing, install Node, deploy, (re)start; re-run to update
 /opt/homelab/projects/wall-dashboard/install-shell.sh 101
 ```
 
-The script checks for Node ≥ 22.18 in the CT, pushes **code only** to `/opt/wall-dashboard` —
-`dashboard.local.ts`, `.env` and the data are never in the tarball, so a deploy can't clobber them —
-builds inside the CT, and installs a systemd unit running as an unprivileged `wall` user:
+1. **CT** — if the ID doesn't exist yet, the shared
+   [`create-lxc.sh`](/source/scripts/phase3-services/create-lxc.sh) creates an unprivileged
+   Debian 13 CT (`nesting=1`, host timezone — the calendar's "today" is the CT's local day, DHCP on
+   `vmbr0`, start on boot), sized for the app. An existing CT whose hostname isn't
+   `wall-dashboard` is refused, so a mistyped ID can't install into another service:
 
-<CodeSnippet file="projects/wall-dashboard/install-shell.sh" start={39} end={58} />
+   <CodeSnippet file="projects/wall-dashboard/install-shell.sh" start={17} end={28} />
 
-First deploy only — put the real config and secrets in place, then re-run `install-shell.sh`:
+2. **Node ≥ 22.18** (type stripping, built-in `node:sqlite`) — Debian's is older, so Node 24 comes
+   from NodeSource's apt repo and `apt upgrade` keeps it patched. Its signing key is checked
+   against the published fingerprint first:
+
+   <CodeSnippet file="projects/wall-dashboard/install-shell.sh" start={30} end={54} />
+
+3. **App** — pushes **code only**, builds it inside the CT in `/opt/wall-dashboard.new` (with
+   `dashboard.local.ts` and `.env` copied over; the data lives in `/var/lib`), and only on success
+   swaps it in for `/opt/wall-dashboard` and restarts — a failed build leaves the running version
+   untouched. The systemd unit runs as an unprivileged `wall` user:
+
+   <CodeSnippet file="projects/wall-dashboard/install-shell.sh" start={76} end={95} />
+
+Until a `dashboard.local.ts` exists the sanitized sample runs. Put the real config and secrets in
+place, then re-run `install-shell.sh`:
 
 ```bash
 # (host)
@@ -236,13 +260,17 @@ pct exec 101 -- cp /opt/wall-dashboard/dashboard.config.ts /opt/wall-dashboard/d
 pct exec 101 -- sh -c 'printf "CAL_KIND1=https://…\nAWARDS_PIN=…\n" > /opt/wall-dashboard/.env && chmod 600 /opt/wall-dashboard/.env'
 ```
 
-Already deployed? Append the PIN instead of overwriting `.env`:
-`pct exec 101 -- sh -c 'echo AWARDS_PIN=… >> /opt/wall-dashboard/.env'`.
-
-The calendar's "today" is the CT's local day — check its timezone (`timedatectl`). Logs:
-`pct exec 101 -- journalctl -u wall-dashboard -f`.
+Logs: `pct exec 101 -- journalctl -u wall-dashboard -f`.
 
 ## Editing the live config
+
+To just read it from the host:
+
+```bash
+# (host)
+cat /rpool/data/subvol-101-disk-0/opt/wall-dashboard/dashboard.local.ts
+pct exec 101 -- cat /opt/wall-dashboard/dashboard.local.ts   # same file, via the CT
+```
 
 The CT's ZFS subvol is mounted on the host whether the container runs or not, so edit
 `dashboard.local.ts` / `.env` straight over the host's SSH (other CTID/storage: derive the path with
@@ -289,5 +317,8 @@ folder; `build.ts` runs it before bundling the shell.
   **Auto-Lock: Never**; keep on charger.
 - **Android:** **Fully Kiosk Browser** (or Fullscreen Immersive) pointed at the URL; disable
   screen timeout.
-- Point at the reverse-proxy HTTPS name once that's up, else `http://<lxc-ip>:8090`. The selected
-  user is remembered per device.
+- Point at the reverse-proxy HTTPS name once that's up, else `http://<lxc-ip>:8080`. The selected
+  user and app are remembered per device.
+- **Old iPads:** needs **iPadOS ≥ 15.4** (cascade layers, `<dialog>`; below that `sdk/ui.css` is
+  ignored and the PIN dialog won't open), ideally **≥ 16.2** (`color-mix` tints; older just drops
+  them). Settings → General → About.
