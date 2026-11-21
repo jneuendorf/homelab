@@ -18,29 +18,49 @@ const stopButton = document.createElement('button');
 stopButton.className = 'radio-stop ui-btn';
 stopButton.onclick = () => stop();
 
+// Stuck on "Verbinde …" (a stream server hangs without an error): restart from the station's own
+// URL, which redirects to a freshly picked server. After 3 tries, give up and show the error.
+const retryMs = 10_000;
+const maxRetries = 3;
+let retryTimer: ReturnType<typeof setTimeout> | undefined;
+let retries = 0;
+
 const setStatus = (next: typeof status) => {
   status = next;
+  clearTimeout(retryTimer);
+  if (next === 'loading') retryTimer = setTimeout(retry, retryMs);
   stopButton.textContent = `⏹ ${playing?.icon ?? '📻'}`;
   if (playing && status !== 'error') document.body.append(stopButton);
   else stopButton.remove();
   rerender();
 };
 
-const play = (station: Station) => {
+const disconnect = () => {
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load(); // drops the connection; a paused live stream would keep buffering
+};
+const play = (station: Station, isRetry = false) => {
   playing = station;
   blocked = false;
+  if (!isRetry) retries = 0;
   audio.src = station.url;
   setStatus('loading');
   audio.play().catch(() => {}); // failures arrive as an 'error' event
 };
+const retry = () => {
+  if (!playing) return;
+  if (++retries <= maxRetries) return play(playing, true);
+  disconnect();
+  setStatus('error');
+};
 const stop = () => {
-  audio.pause();
-  audio.removeAttribute('src');
-  audio.load(); // drops the connection; a paused live stream would keep buffering
+  disconnect();
   playing = null;
   setStatus('idle');
 };
 audio.onplaying = () => {
+  retries = 0;
   sessionStorage.removeItem('radio:csp');
   setStatus('playing');
 };
