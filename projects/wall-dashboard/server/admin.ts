@@ -8,8 +8,7 @@ const lockMs = 60_000;
 
 /** Returns null for the right PIN, else why not. `expected`/`now` are injectable for tests. */
 export const pinCheck = (
-  // ponytail: AWARDS_PIN is the old name, still read so existing .env files keep working
-  expected = () => secret('ADMIN_PIN') ?? secret('AWARDS_PIN'),
+  expected = () => secret('ADMIN_PIN'),
   now = Date.now,
 ) => {
   let misses = 0;

@@ -117,7 +117,7 @@ inject HTML. Calendar URLs stay in `.env` and are only read server-side.
 - `dashboard.local.ts` is **bundled into the browser** too: never put a token in it as a literal,
   always `secret('NAME')`.
 - Parent-only actions (stars, radio stations) need `ADMIN_PIN`, checked server-side; 5 misses
-  lock it for a minute. The old name `AWARDS_PIN` is still read.
+  lock it for a minute.
 - Any LAN device can otherwise read and write all app data by design; plain HTTP until the reverse
   proxy adds TLS.
 
