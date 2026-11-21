@@ -77,13 +77,16 @@
   height: 2.6em;
   margin: 0 1.3em 0 0.4em;
   border-radius: 1.3em;
-  background: color-mix(in srgb, var(--user) 12%, var(--surface));
+  background: var(--surface);
+  --tint: var(--user);
+  --tint-alpha: 0.12;
 }
 .aw-fill {
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: 1.3em;
-  background: color-mix(in srgb, var(--user) 45%, transparent);
+  background: var(--user);
+  opacity: 0.45;
   transition: width 0.8s ease-out;
 }
 .aw-planet,
@@ -150,7 +153,8 @@
 }
 .aw-mission.picking {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  --tint: var(--accent);
+  --tint-alpha: 0.2;
 }
 .aw-pick {
   display: flex;
@@ -190,7 +194,7 @@
 .aw-week th,
 .aw-week td {
   padding: 0.15em 0.4em;
-  border-bottom: 1px solid color-mix(in srgb, var(--dim) 30%, transparent);
+  border-bottom: 1px solid var(--surface);
   text-align: left;
   white-space: nowrap;
 }
@@ -198,7 +202,8 @@
   min-width: 3.5em;
 }
 .aw-week .today {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  --tint: var(--accent);
+  --tint-alpha: 0.12;
 }
 
 .aw-bar {

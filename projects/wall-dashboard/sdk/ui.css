@@ -57,6 +57,25 @@
 }
 
 @layer components {
+  /* Tinted background: --tint at --tint-alpha over whatever is behind (surface, page). A layer
+     instead of color-mix(), which older iPad Safari lacks: it drops the whole background. */
+  .ui-tint {
+    position: relative;
+    isolation: isolate;
+  }
+  .ui-tint::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--tint, transparent);
+    opacity: var(--tint-alpha, 0);
+    pointer-events: none;
+  }
   /* Outline button; `ui-btn--primary` for the one main action. */
   .ui-btn {
     display: inline-flex;

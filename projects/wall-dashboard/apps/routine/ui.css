@@ -69,7 +69,8 @@
 
 .routine-item.checked {
   border-color: var(--user);
-  background: color-mix(in srgb, var(--user) 22%, transparent);
+  --tint: var(--user);
+  --tint-alpha: 0.22;
   animation: ri-pop 0.3s ease;
 }
 .routine-item.checked .ri-label {

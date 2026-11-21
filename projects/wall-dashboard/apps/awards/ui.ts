@@ -98,7 +98,7 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
             ? raw(html`<span class="aw-streak" title="Tage am Stück">🔥${p.streak}</span>`)
             : ''}
         </div>
-        <div class="aw-lane">
+        <div class="aw-lane ui-tint">
           <div class="aw-fill" style="width:${pct(p.earned)}%"></div>
           ${goal.checkpoints.map((c) =>
             raw(
@@ -125,7 +125,7 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
           ${state.missions.map((m) =>
             raw(
               html`<button
-                class="ui-btn aw-mission ${picking === m.id ? 'picking' : ''}"
+                class="ui-btn ui-tint aw-mission ${picking === m.id ? 'picking' : ''}"
                 data-mission="${m.id}"
               >
                 <span class="aw-icon">${m.icon}</span><span>${m.label}</span>
@@ -194,7 +194,7 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
         <tr>
           <th></th>
           ${days.map((d) =>
-            raw(html`<th class="${d === today ? 'today' : ''}">${fmt(d).split(',')[0]}</th>`),
+            raw(html`<th class="${d === today ? 'ui-tint today' : ''}">${fmt(d).split(',')[0]}</th>`),
           )}
         </tr>
         ${rows.map((row) =>
@@ -203,7 +203,7 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
               <th>${row.icon} ${row.label}</th>
               ${row.cells.map((stars, i) =>
                 raw(
-                  html`<td class="${days[i] === today ? 'today' : ''}">
+                  html`<td class="${days[i] === today ? 'ui-tint today' : ''}">
                     ${stars.map((s) =>
                       s.confirmed
                         ? '⭐'.repeat(s.stars)

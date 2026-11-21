@@ -60,7 +60,7 @@ const renderChrome = () => {
     )
     .join('');
   const family = html`<button data-user="" aria-pressed="${user === null}">
-    <span class="avatar">👪</span><span>Alle</span>
+    <span class="avatar ui-tint">👪</span><span>Alle</span>
   </button>`;
   who.innerHTML =
     family +
@@ -68,7 +68,7 @@ const renderChrome = () => {
       .map(
         (u) =>
           html`<button data-user="${u.id}" aria-pressed="${u === user}" style="--user:${u.color}">
-            <span class="avatar">${u.avatar ?? u.name[0]}</span><span>${u.name}</span>
+            <span class="avatar ui-tint">${u.avatar ?? u.name[0]}</span><span>${u.name}</span>
           </button>`,
       )
       .join('');

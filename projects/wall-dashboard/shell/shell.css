@@ -99,7 +99,8 @@ body {
   width: 1.7em;
   height: 1.7em;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--user) 40%, transparent);
+  --tint: var(--user);
+  --tint-alpha: 0.4;
   font-size: 1.5em;
 }
 #users button[aria-pressed='true'] {

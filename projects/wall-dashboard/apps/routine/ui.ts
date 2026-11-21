@@ -74,7 +74,7 @@ export const mount: Mount<RoutineConfig> = (el, ctx) => {
               ${items.map((item) =>
                 raw(
                   html`<button
-                    class="ui-btn routine-item ${s?.done[item.label] ? 'checked' : ''}"
+                    class="ui-btn ui-tint routine-item ${s?.done[item.label] ? 'checked' : ''}"
                     data-user="${user.id}"
                     data-label="${item.label}"
                   >

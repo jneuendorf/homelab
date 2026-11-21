@@ -20,7 +20,8 @@
 }
 .radio-tile > button[aria-pressed='true'] {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  --tint: var(--accent);
+  --tint-alpha: 0.22;
 }
 .radio-icon {
   font-size: 2.6em;

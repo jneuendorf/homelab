@@ -94,7 +94,7 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
         ${stations.map((s) =>
           raw(
             html`<div class="radio-tile">
-              <button data-play="${s.id}" aria-pressed="${playing?.id === s.id}">
+              <button class="ui-tint" data-play="${s.id}" aria-pressed="${playing?.id === s.id}">
                 <span class="radio-icon">${s.icon}</span>
                 <span>${s.label}</span>
                 <span class="radio-status">
