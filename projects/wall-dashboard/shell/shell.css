@@ -44,9 +44,34 @@ body {
   font-size: 2.2em;
   line-height: 1;
 }
+/* Tint + bar as pseudo-elements: older iPad Safari has no color-mix(), and an inset box-shadow
+   bends along the border-radius. */
 #nav button[aria-current='page'] {
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  position: relative;
+  isolation: isolate;
   color: var(--bright);
+}
+#nav button[aria-current='page']::before,
+#nav button[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  background: var(--accent);
+}
+#nav button[aria-current='page']::before {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: inherit;
+  opacity: 0.35;
+}
+#nav button[aria-current='page']::after {
+  top: 20%;
+  bottom: 20%;
+  left: 0;
+  width: 0.25rem;
+  border-radius: 0.25rem;
 }
 
 #users {
