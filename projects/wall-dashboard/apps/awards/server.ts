@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { type Handler, secret } from '#sdk';
+import { membersOf, type Handler, secret } from '#sdk';
 import type { AwardsConfig } from './index.ts';
 import { apply, emptyState, parentActions, type State } from './logic.ts';
 
@@ -33,7 +33,7 @@ const handler: Handler<AwardsConfig> = async (req, ctx) => {
     const denied = checkPin(req.headers.get('x-pin'));
     if (denied) return new Response(denied, { status: 403 });
   }
-  const userIds = ctx.users.map((u) => u.id);
+  const userIds = membersOf(ctx.users).map((u) => u.id);
   const next = apply(state, ctx.path, await req.json(), userIds, randomUUID);
   if (next !== state) ctx.store.set('state', next); // pushes topic "state" to every screen
   return new Response(null, { status: 204 });

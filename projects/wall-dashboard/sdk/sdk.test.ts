@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { defineApp, forUser } from './index.ts';
+import { membersOf, defaultAdmin, defineApp, defineDashboard, forUser } from './index.ts';
 import { html, raw } from './utils.ts';
 
 test('app defaults → instance config → sparse per-user override', () => {
@@ -18,4 +18,14 @@ test('html escapes interpolations, raw() opts out', () => {
   // prettier-ignore
   assert.equal(html`<ul>${['a&b', raw('<li>c</li>')]}</ul>`, '<ul>a&amp;b<li>c</li></ul>');
   assert.equal(html`${null}${undefined}${0}`, '0');
+});
+
+test('defineDashboard adds the default admin unless one is configured', () => {
+  const kid = { id: 'kid', name: 'Kid', color: '#000' };
+  const mama = { id: 'mama', name: 'Mama', color: '#fff' };
+  const added = defineDashboard({ users: [kid, mama], apps: [] }).users;
+  assert.deepEqual(added, [kid, mama, defaultAdmin]);
+  assert.deepEqual(membersOf(added), [kid, mama]);
+  const own = { ...mama, admin: true };
+  assert.deepEqual(defineDashboard({ users: [kid, own], apps: [] }).users, [kid, own]);
 });

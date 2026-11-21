@@ -125,7 +125,7 @@ export const apply = (
       const star = { ...snapshot, id: id(), user: user(body.user), day: day(body.day) };
       return { ...state, stars: [...state.stars, { ...star, confirmed: false }] };
     }
-    case 'withdraw': // kids may take back their own unconfirmed tap
+    case 'withdraw': // members may take back their own unconfirmed tap
       return { ...state, stars: state.stars.filter((s) => s.id !== body.id || s.confirmed) };
     case 'remove':
       return { ...state, stars: state.stars.filter((s) => s.id !== body.id) };

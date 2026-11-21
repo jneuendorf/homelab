@@ -105,7 +105,7 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
         ? '⌛ Zeit vorbei'
         : `${next.icon} ${next.label} in ${next.at - p.earned} ⭐ · ${left ? `noch ${left} Tage` : 'letzter Tag'}`;
     return raw(
-      html`<div class="aw-track ${p.reached ? 'reached' : ''}" style="--child:${owner.color}">
+      html`<div class="aw-track ${p.reached ? 'reached' : ''}" style="--user:${owner.color}">
         <div class="aw-who">
           <span class="aw-avatar">${owner.avatar ?? ''}</span>${owner.name}
           ${p.streak > 1
@@ -154,7 +154,7 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
                 Wer war's?
                 ${ctx.users.map((u) =>
                   raw(
-                    html`<button class="ui-btn" data-claim="${u.id}" style="--child:${u.color}">
+                    html`<button class="ui-btn" data-claim="${u.id}" style="--user:${u.color}">
                       ${u.avatar ?? ''} ${u.name}
                     </button>`,
                   ),
@@ -173,7 +173,7 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
         <span class="ui-dim">${pin ? 'Bestätigen:' : '⏳ wartet auf Eltern:'}</span>
         ${list.map((s) =>
           raw(
-            html`<span class="ui-chip aw-chip" style="--child:${who(s.user)?.color ?? '#999'}">
+            html`<span class="ui-chip aw-chip" style="--user:${who(s.user)?.color ?? '#999'}">
               ${who(s.user)?.avatar ?? ''} ${s.icon} ${s.label} +${s.stars}
               ${pin ? raw(html`<button class="ui-btn" data-confirm="${s.id}">✓</button>`) : ''}
               <button class="ui-btn" data-drop="${s.id}">✕</button>
@@ -237,14 +237,16 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
     raw(
       html`<div class="aw-bar">
         <button class="ui-chip" data-open="trophies">🏆 Trophäen</button>
-        ${pin
-          ? raw(
-              html`<button class="ui-chip" data-open="bonus">🌟 Bonus</button>
-                <button class="ui-chip" data-open="goal">🎯 Ziele</button>
-                <button class="ui-chip" data-open="missions">📝 Missionen</button>
-                <button class="ui-chip" data-lock>🔓 sperren</button>`,
-            )
-          : raw(html`<button class="ui-chip" data-open="keypad">🔒 Eltern</button>`)}
+        ${!ctx.admin
+          ? ''
+          : pin
+            ? raw(
+                html`<button class="ui-chip" data-open="bonus">🌟 Bonus</button>
+                  <button class="ui-chip" data-open="goal">🎯 Ziele</button>
+                  <button class="ui-chip" data-open="missions">📝 Missionen</button>
+                  <button class="ui-chip" data-lock>🔓 sperren</button>`,
+              )
+            : raw(html`<button class="ui-chip" data-open="keypad">🔒 Entsperren</button>`)}
       </div>`,
     );
 
@@ -253,7 +255,7 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
     main.innerHTML = html`
       ${goals.length
         ? goals.map(track)
-        : raw(html`<p class="ui-dim">Noch kein Ziel — Eltern: 🔒 → 🎯 Ziele.</p>`)}
+        : raw(html`<p class="ui-dim">Noch kein Ziel — Eltern → 🔒 Entsperren → 🎯 Ziele.</p>`)}
       ${missions()} ${pending()} ${ctx.user ? week(ctx.user) : ''} ${parentBar()}
     `;
   };

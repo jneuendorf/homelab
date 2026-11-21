@@ -15,7 +15,7 @@ export default defineDashboard({
   users: [
     { id: 'kind1', name: 'Kind 1', color: '#2ecc71', avatar: '🦊' },
     { id: 'kind2', name: 'Kind 2', color: '#3498db', avatar: '🐉' },
-    { id: 'eltern', name: 'Eltern', color: '#e67e22', avatar: '☕' },
+    // + the default admin 'Eltern' (defaultAdmin); list a user with admin: true to replace it
   ],
   apps: [
     today(),
@@ -59,7 +59,7 @@ export default defineDashboard({
             };
           },
           items: (ctx) => {
-            // ctx.calendar = this child's + family events today
+            // ctx.calendar = this user's + family events today
             const away = ctx.calendar.some(
               (e) => e.location && !/schule|kita|zuhause/i.test(e.location),
             );

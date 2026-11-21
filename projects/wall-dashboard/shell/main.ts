@@ -1,6 +1,6 @@
 // Menubar (left), user switcher (top-right), and the mount/unmount lifecycle for one app at a time.
 import dashboard from '#config';
-import { forUser, type AppContext, type User } from '#sdk';
+import { membersOf, forUser, type AppContext, type User } from '#sdk';
 import { $, html } from '#sdk/utils';
 
 const { users, locale = 'de-DE' } = dashboard;
@@ -87,8 +87,9 @@ const show = async () => {
   const kv = (key: string) => `/api/${app.id}/kv/${encodeURIComponent(key)}`;
   const ctx: AppContext<unknown> = {
     config: forUser(app.config, user?.id),
-    user,
-    users,
+    user: user?.admin ? null : user,
+    admin: !!user?.admin,
+    users: membersOf(users),
     locale,
     configFor: (userId) => forUser(app.config, userId),
     api: (path, init) => fetch(`/api/${app.id}/${path}`, init),

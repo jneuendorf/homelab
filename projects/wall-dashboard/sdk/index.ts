@@ -1,7 +1,23 @@
 // The whole app contract. Isomorphic: imported by the server (config, handlers) and the browser
 // bundle (ui). Nothing here touches the DOM at import time.
 
-export type User = { id: string; name: string; color: string; avatar?: string };
+export type User = {
+  id: string;
+  name: string;
+  color: string;
+  avatar?: string;
+  /** Configures apps (behind a PIN where it matters); not a member in routine, stars … */
+  admin?: boolean;
+};
+
+/** Added by defineDashboard when no user is `admin`. */
+export const defaultAdmin: User = {
+  id: 'eltern',
+  name: 'Eltern',
+  color: '#e67e22',
+  avatar: '☕',
+  admin: true,
+};
 
 /** Sparse per-user overrides, merged over the app's config by `forUser`. */
 export type PerUser<C> = { perUser?: Record<string, Partial<C>> };
@@ -14,8 +30,11 @@ export type Store = {
 export type AppContext<C> = {
   /** Config resolved for `user` (or the base config in the family view). */
   config: C;
-  /** Selected user, or null for the family view. */
+  /** Selected member, or null for the family view and for the admin (both see everyone). */
   user: User | null;
+  /** An admin (e.g. Eltern) is selected: show the app's settings. */
+  admin: boolean;
+  /** Members only — admins are never in here. */
   users: User[];
   locale: string;
   /** Config resolved for any user — for apps that show several users at once (e.g. routine). */
@@ -38,6 +57,7 @@ export type ServerStore = {
 
 export type ServerContext<C> = {
   config: C & PerUser<C>;
+  /** All users, incl. the admin — membersOf(users) for the members. */
   users: User[];
   store: ServerStore;
   publish(topic: string, data: unknown): void;
@@ -76,7 +96,15 @@ export type Dashboard = {
   apps: App[];
 };
 
-export const defineDashboard = (dashboard: Dashboard) => dashboard;
+export const defineDashboard = (dashboard: Dashboard): Dashboard => ({
+  ...dashboard,
+  users: dashboard.users.some((u) => u.admin)
+    ? dashboard.users
+    : [...dashboard.users, defaultAdmin],
+});
+
+/** Members = everyone but the admins: the people apps track (routine rows, star goals …). */
+export const membersOf = (users: User[]) => users.filter((u) => !u.admin);
 
 // ponytail: shallow merge — a per-user value replaces the whole key, which is what lists want
 export const forUser = <C>(config: C & PerUser<C>, userId?: string | null): C => {
