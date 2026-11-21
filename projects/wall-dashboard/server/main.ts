@@ -5,6 +5,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { dirname, extname, join, normalize, sep } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { Handler, ServerStore } from '#sdk';
+import { pinCheck } from './admin.ts';
 import { loadConfig } from './config.ts';
 import { isAllowedHost, isLan, isSameOrigin } from './net.ts';
 
@@ -26,6 +27,7 @@ const securityHeaders = {
 };
 
 const dashboard = await loadConfig();
+const checkPin = pinCheck();
 
 mkdirSync(dirname(dbPath), { recursive: true });
 const db = new DatabaseSync(dbPath);
@@ -123,7 +125,9 @@ const api = async (req: IncomingMessage, res: ServerResponse, appId: string, pat
       body: hasBody ? await readBody(req) : undefined,
     },
   );
+  const pin = request.headers.get('x-pin');
   const response = await handler(request, {
+    admin: pin !== null && checkPin(pin) === null,
     config: app.config,
     users: dashboard.users,
     store: storeFor(appId),
@@ -163,6 +167,10 @@ createServer(async (req, res) => {
   const { pathname } = new URL(req.url ?? '/', 'http://localhost');
   try {
     if (pathname === '/api/events') return events(req, res);
+    if (pathname === '/api/unlock' && req.method === 'POST') {
+      const denied = checkPin(req.headers['x-pin']?.toString() ?? null);
+      return denied ? send(res, 403, denied) : send(res, 204, '');
+    }
     const route = pathname.match(/^\/api\/([\w-]+)\/(.*)$/);
     if (route) return await api(req, res, route[1], route[2]);
     return await serveStatic(res, pathname === '/' ? '/index.html' : pathname);

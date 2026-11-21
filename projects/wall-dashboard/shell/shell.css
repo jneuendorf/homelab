@@ -94,3 +94,23 @@ body {
 .app-error {
   color: var(--dim);
 }
+
+/* PIN keypad, opened when an admin user is picked */
+.keypad h2 {
+  margin: 0 0 0.4em;
+  text-align: center;
+}
+.keypad-keys {
+  display: grid;
+  grid-template-columns: repeat(3, 3.2em);
+  gap: 0.4em;
+  font-size: 1.4em;
+}
+.keypad-keys .ui-btn {
+  height: 2.4em;
+}
+.keypad-entry,
+.keypad-wide {
+  grid-column: span 3;
+  text-align: center;
+}

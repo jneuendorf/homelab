@@ -104,7 +104,7 @@ const reward = (v: unknown): Reward => {
   return { icon: str(r.icon, 16), label: str(r.label) };
 };
 
-export const parentActions = new Set(['unlock', 'confirm', 'remove', 'bonus', 'missions', 'goal']);
+export const parentActions = new Set(['confirm', 'remove', 'bonus', 'missions', 'goal']);
 
 /** Applies one action; throws (status 400) on invalid input. `id` makes new ids. */
 export const apply = (
@@ -117,8 +117,6 @@ export const apply = (
   const body = obj(input);
   const user = (v: unknown) => (userIds.includes(v as string) ? (v as string) : fail('bad user'));
   switch (action) {
-    case 'unlock':
-      return state;
     case 'claim': {
       const mission = state.missions.find((m) => m.id === body.mission) ?? fail('bad mission');
       const { id: _, ...snapshot } = mission;

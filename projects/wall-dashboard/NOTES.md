@@ -48,7 +48,11 @@ build.ts               per-app `npm run build` (if any) → esbuild shell bundle
 - **Generic store:** every app gets `ctx.store.get/set` (sqlite via `node:sqlite`) over
   `/api/<app>/kv/<key>`; a `set` is pushed to all screens over SSE (`ctx.subscribe(key)`). Apps
   needing validation/atomic ops add a `server.ts` — which closes the raw `kv/` route for that app
-  (e.g. awards: PIN-gated parent actions).
+  (e.g. awards: parent-only actions).
+- **Admin = PIN, not login:** picking an admin user asks for `ADMIN_PIN` (`server/admin.ts`, 5
+  misses → 1 min lock). The shell keeps it in memory only, sends it as `x-pin` with every app
+  request while unlocked, and the server turns it into `ctx.admin` for handlers. Locks after 5 idle
+  minutes, on switching user, or on reload. Kid-proofing, not security.
 - **Shared look:** `sdk/ui.css` is loaded once by the shell; apps use its tokens and `ui-` classes
   without importing it. It is all in `@layer`s and app CSS is not, so app rules win without
   specificity games. Only what two apps already share goes in.
@@ -91,5 +95,5 @@ scripts/deploy.sh root@192.168.1.10
 ```
 
 First deploy, inside the CT: copy `dashboard.config.ts` → `dashboard.local.ts` (real names), put
-secrets in `/opt/wall-dashboard/.env` (`CAL_KIND1=https://…`, `AWARDS_PIN=…`, `chmod 600`), re-run
+secrets in `/opt/wall-dashboard/.env` (`CAL_KIND1=https://…`, `ADMIN_PIN=…`, `chmod 600`), re-run
 `install-shell.sh`. Serves on :8080 in CT 101.

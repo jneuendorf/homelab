@@ -17,8 +17,6 @@ import {
 } from './logic.ts';
 import css from './ui.css';
 
-// Parent mode locks itself again; the PIN lives only in this closure, never in storage.
-const unlockMs = 5 * 60_000;
 const countsLabel: Record<Counts, string> = {
   ich: '🙋 ich',
   beide: '🙋+🏠 beide',
@@ -38,8 +36,6 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
   const dialog = $<HTMLDialogElement>(el, '.aw-dialog');
   let state: State = emptyState([]);
   let today = dayKey();
-  let pin: string | null = null;
-  let entry = ''; // keypad input
   let picking: string | null = null; // mission waiting for "who?" in the family view
   let earnedBefore: Map<string, number> | null = null;
   const timers = new Set<ReturnType<typeof setTimeout>>();
@@ -51,7 +47,6 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
     timers.add(t);
     return t;
   };
-  let lockTimer: ReturnType<typeof setTimeout> | undefined;
 
   const family: User = { id: FAMILY, name: 'Familie', color: '#ffcc33', avatar: '🏠' };
   const who = (id: string | null) =>
@@ -71,21 +66,12 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
           owners().findIndex((u) => u.id === a.owner) - owners().findIndex((u) => u.id === b.owner),
       );
 
-  const post = async (action: string, body: unknown) => {
-    const res = await ctx.api(action, {
+  const post = (action: string, body: unknown) =>
+    ctx.api(action, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', ...(pin ? { 'x-pin': pin } : {}) },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (res.status === 403) lock();
-    return res;
-  };
-
-  const lock = () => {
-    pin = null;
-    clearTimeout(lockTimer);
-    render();
-  };
 
   // ── main view ────────────────────────────────────────────────────────────────────────────────
 
@@ -170,17 +156,17 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
     if (!list.length) return '';
     return raw(
       html`<div class="aw-pending">
-        <span class="ui-dim">${pin ? 'Bestätigen:' : '⏳ wartet auf Eltern:'}</span>
+        <span class="ui-dim">${ctx.admin ? 'Bestätigen:' : '⏳ wartet auf Eltern:'}</span>
         ${list.map((s) =>
           raw(
             html`<span class="ui-chip aw-chip" style="--user:${who(s.user)?.color ?? '#999'}">
               ${who(s.user)?.avatar ?? ''} ${s.icon} ${s.label} +${s.stars}
-              ${pin ? raw(html`<button class="ui-btn" data-confirm="${s.id}">✓</button>`) : ''}
+              ${ctx.admin ? raw(html`<button class="ui-btn" data-confirm="${s.id}">✓</button>`) : ''}
               <button class="ui-btn" data-drop="${s.id}">✕</button>
             </span>`,
           ),
         )}
-        ${pin && list.length > 1
+        ${ctx.admin && list.length > 1
           ? raw(html`<button class="ui-btn" data-confirm-all>✓ alle</button>`)
           : ''}
       </div>`,
@@ -237,16 +223,13 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
     raw(
       html`<div class="aw-bar">
         <button class="ui-chip" data-open="trophies">🏆 Trophäen</button>
-        ${!ctx.admin
-          ? ''
-          : pin
-            ? raw(
-                html`<button class="ui-chip" data-open="bonus">🌟 Bonus</button>
-                  <button class="ui-chip" data-open="goal">🎯 Ziele</button>
-                  <button class="ui-chip" data-open="missions">📝 Missionen</button>
-                  <button class="ui-chip" data-lock>🔓 sperren</button>`,
-              )
-            : raw(html`<button class="ui-chip" data-open="keypad">🔒 Entsperren</button>`)}
+        ${ctx.admin
+          ? raw(
+              html`<button class="ui-chip" data-open="bonus">🌟 Bonus</button>
+                <button class="ui-chip" data-open="goal">🎯 Ziele</button>
+                <button class="ui-chip" data-open="missions">📝 Missionen</button>`,
+            )
+          : ''}
       </div>`,
     );
 
@@ -255,7 +238,7 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
     main.innerHTML = html`
       ${goals.length
         ? goals.map(track)
-        : raw(html`<p class="ui-dim">Noch kein Ziel — Eltern → 🔒 Entsperren → 🎯 Ziele.</p>`)}
+        : raw(html`<p class="ui-dim">Noch kein Ziel — Eltern → 🎯 Ziele.</p>`)}
       ${missions()} ${pending()} ${ctx.user ? week(ctx.user) : ''} ${parentBar()}
     `;
   };
@@ -465,14 +448,6 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
   };
 
   const dialogs: Record<string, () => string> = {
-    keypad: () =>
-      html`<div class="aw-keypad">
-        <div class="aw-entry">${'●'.repeat(entry.length) || '•••'}</div>
-        ${['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'OK'].map((k) =>
-          raw(html`<button class="ui-btn" data-key="${k}">${k}</button>`),
-        )}
-        <button class="ui-btn aw-wide" data-close>Abbrechen</button>
-      </div>`,
     bonus: () =>
       html`<form data-form="bonus">
         <h2>🌟 Bonus-Sterne</h2>
@@ -531,21 +506,6 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
   const open = (name: string, content = dialogs[name]()) => {
     dialog.innerHTML = content;
     if (!dialog.open) dialog.showModal();
-  };
-
-  const submitKeypad = async () => {
-    pin = entry;
-    entry = '';
-    const res = await post('unlock', {});
-    if (!res.ok) {
-      pin = null;
-      $(dialog, '.aw-entry').textContent = res.status === 403 ? `✕ ${await res.text()}` : '✕';
-      return;
-    }
-    dialog.close();
-    clearTimeout(lockTimer);
-    lockTimer = setTimeout(lock, unlockMs);
-    render();
   };
 
   const readGoal = (form: FormData): Goal => {
@@ -617,11 +577,6 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
     const d = target.closest<HTMLElement>('button')?.dataset;
     if (!d) return;
     if (d.close !== undefined) dialog.close();
-    if (d.key) {
-      if (d.key === 'OK') return submitKeypad();
-      entry = d.key === '⌫' ? entry.slice(0, -1) : (entry + d.key).slice(0, 8);
-      $(dialog, '.aw-entry').textContent = '●'.repeat(entry.length) || '•••';
-    }
     if (d.removeRow !== undefined) target.closest('.aw-row')?.remove();
     if (d.add)
       $(dialog, '[data-rows]').insertAdjacentHTML(
@@ -673,12 +628,8 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
       post('confirm', {
         ids: state.stars.filter((s) => !s.confirmed).map((s) => s.id),
       });
-    if (d.drop) post(pin ? 'remove' : 'withdraw', { id: d.drop });
-    if (d.lock !== undefined) lock();
-    if (d.open) {
-      entry = '';
-      open(d.open);
-    }
+    if (d.drop) post(ctx.admin ? 'remove' : 'withdraw', { id: d.drop });
+    if (d.open) open(d.open);
   };
 
   ctx.subscribe('state', (data) => update(data as State));
@@ -690,7 +641,6 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
   });
   return () => {
     stop();
-    clearTimeout(lockTimer);
     for (const t of timers) clearTimeout(t);
     if (dialog.open) dialog.close();
   };

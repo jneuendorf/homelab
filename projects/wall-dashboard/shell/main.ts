@@ -1,7 +1,7 @@
 // Menubar (left), user switcher (top-right), and the mount/unmount lifecycle for one app at a time.
 import dashboard from '#config';
 import { membersOf, forUser, type AppContext, type User } from '#sdk';
-import { $, html } from '#sdk/utils';
+import { $, html, raw } from '#sdk/utils';
 
 const { users, locale = 'de-DE' } = dashboard;
 const apps = dashboard.apps.flatMap((app) => (app.ui ? [{ ...app, ui: app.ui }] : []));
@@ -23,7 +23,9 @@ const remember = (key: string, value: string | null) => {
 };
 
 let current = apps.find((app) => app.id === remembered('wall:app')) ?? apps[0];
-let user: User | null = users.find((u) => u.id === remembered('wall:user')) ?? null;
+// an admin is never restored: the PIN lives only in memory
+let user: User | null = users.find((u) => u.id === remembered('wall:user') && !u.admin) ?? null;
+let pin: string | null = null;
 
 // One EventSource for all apps; topics are "<app>:<key>".
 const listeners = new Map<string, Set<(data: unknown) => void>>();
@@ -92,7 +94,13 @@ const show = async () => {
     users: membersOf(users),
     locale,
     configFor: (userId) => forUser(app.config, userId),
-    api: (path, init) => fetch(`/api/${app.id}/${path}`, init),
+    api: async (path, init) => {
+      const headers = new Headers(init?.headers);
+      if (pin) headers.set('x-pin', pin);
+      const res = await fetch(`/api/${app.id}/${path}`, { ...init, headers });
+      if (res.status === 403 && pin) lock(); // PIN changed on the server or locked out
+      return res;
+    },
     store: {
       get: async (key) => {
         const res = await fetch(kv(key));
@@ -141,14 +149,74 @@ nav.onclick = (event) => {
   remember('wall:app', next.id);
   show();
 };
+const selectUser = (next: User | null) => {
+  if (!next?.admin) pin = null; // leaving the admin locks it
+  user = next;
+  remember('wall:user', next?.admin ? null : (next?.id ?? null));
+  show();
+};
+
+// ── admin lock: picking an admin asks for the PIN; 5 idle minutes lock it again ──────────────
+const idleMs = 5 * 60_000;
+let idleTimer: ReturnType<typeof setTimeout> | undefined;
+const lock = () => {
+  clearTimeout(idleTimer);
+  if (user?.admin) selectUser(null);
+};
+document.addEventListener('pointerdown', () => {
+  if (!pin) return;
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(lock, idleMs);
+});
+
+const keypad = document.createElement('dialog');
+keypad.className = 'ui-dialog keypad';
+document.body.append(keypad);
+let entry = '';
+let pending: User | null = null;
+const showEntry = (text = '●'.repeat(entry.length) || '•••') => {
+  $(keypad, '.keypad-entry').textContent = text;
+};
+const askPin = (admin: User) => {
+  pending = admin;
+  entry = '';
+  keypad.innerHTML = html`<h2>${admin.avatar ?? ''} ${admin.name}</h2>
+    <div class="keypad-keys">
+      <div class="keypad-entry"></div>
+      ${['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'OK'].map((k) =>
+        raw(html`<button class="ui-btn" data-key="${k}">${k}</button>`),
+      )}
+      <button class="ui-btn keypad-wide" data-key="">Abbrechen</button>
+    </div>`;
+  showEntry();
+  keypad.showModal();
+};
+keypad.onclick = async (event) => {
+  const key = (event.target as Element).closest<HTMLElement>('[data-key]')?.dataset.key;
+  if (key === undefined) return;
+  if (key === '') return keypad.close();
+  if (key !== 'OK') {
+    entry = key === '⌫' ? entry.slice(0, -1) : (entry + key).slice(0, 8);
+    return showEntry();
+  }
+  const res = await fetch('/api/unlock', { method: 'POST', headers: { 'x-pin': entry } });
+  if (!res.ok) {
+    entry = '';
+    return showEntry(`✕ ${await res.text()}`);
+  }
+  pin = entry;
+  keypad.close();
+  idleTimer = setTimeout(lock, idleMs);
+  if (pending) selectUser(pending);
+};
+
 who.onclick = (event) => {
   const id = (event.target as Element).closest<HTMLElement>('[data-user]')?.dataset.user;
   if (id === undefined) return;
   const next = users.find((u) => u.id === id) ?? null;
   if (next === user) return;
-  user = next;
-  remember('wall:user', next?.id ?? null);
-  show();
+  if (next?.admin && !pin) return askPin(next);
+  selectUser(next);
 };
 
 show();

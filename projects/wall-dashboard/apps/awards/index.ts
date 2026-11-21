@@ -1,5 +1,5 @@
 // Star chart with goals and rewards, like the paper "Superhelden" sheet: members tap a mission, an
-// admin confirms with the PIN (AWARDS_PIN in .env, checked on the server). Missions, goals and
+// admin confirms (the shell's PIN unlock, ADMIN_PIN in .env, checked on the server). Missions, goals and
 // rewards are edited on the tablet; `missions` here only seeds an empty store.
 import { defineApp } from '#sdk';
 import type { Mission } from './logic.ts';

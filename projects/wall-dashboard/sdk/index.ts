@@ -32,7 +32,8 @@ export type AppContext<C> = {
   config: C;
   /** Selected member, or null for the family view and for the admin (both see everyone). */
   user: User | null;
-  /** An admin (e.g. Eltern) is selected: show the app's settings. */
+  /** An admin (e.g. Eltern) is selected and unlocked with the PIN: show the app's settings.
+   *  While true, api() sends the PIN, so the server's ctx.admin is true as well. */
   admin: boolean;
   /** Members only — admins are never in here. */
   users: User[];
@@ -56,6 +57,8 @@ export type ServerStore = {
 };
 
 export type ServerContext<C> = {
+  /** The request carries the right admin PIN: allow parent-only actions. */
+  admin: boolean;
   config: C & PerUser<C>;
   /** All users, incl. the admin — membersOf(users) for the members. */
   users: User[];

@@ -35,20 +35,6 @@
 .aw-dialog footer button:first-child {
   margin-right: auto;
 }
-.aw-keypad {
-  display: grid;
-  grid-template-columns: repeat(3, 3.2em);
-  gap: 0.4em;
-  font-size: 1.4em;
-}
-.aw-keypad button {
-  height: 2.4em;
-}
-.aw-entry,
-.aw-keypad .aw-wide {
-  grid-column: span 3;
-  text-align: center;
-}
 .aw-trophy {
   display: flex;
   align-items: center;
