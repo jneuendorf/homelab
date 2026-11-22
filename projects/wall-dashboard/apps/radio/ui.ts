@@ -87,8 +87,23 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
   adoptStyle('radio', css);
   let stations: Station[] = [];
   let message = '';
+  let now = { id: '', title: '' }; // now-playing title of the playing station
+
+  const refresh = async () => {
+    const id = playing?.id;
+    if (!id || status !== 'playing') return;
+    const res = await ctx.api(`now?id=${encodeURIComponent(id)}`);
+    if (!res.ok || playing?.id !== id) return;
+    now = { id, title: ((await res.json()) as { title: string }).title };
+    render();
+  };
+  const timer = setInterval(refresh, 30_000);
 
   const render = () => {
+    if (status === 'playing' && playing && now.id !== playing.id) {
+      now = { id: playing.id, title: '' };
+      refresh();
+    }
     el.innerHTML = html`<div class="radio">
       <div class="radio-grid">
         ${stations.map((s) =>
@@ -104,6 +119,9 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
                       ]
                     : ''}
                 </span>
+                ${playing?.id === s.id && status === 'playing' && now.id === s.id && now.title
+                  ? raw(html`<span class="radio-now">${now.title}</span>`)
+                  : ''}
               </button>
               ${ctx.admin
                 ? raw(
@@ -200,5 +218,6 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
   load();
   return () => {
     rerender = () => {};
+    clearInterval(timer);
   };
 };

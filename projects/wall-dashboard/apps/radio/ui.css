@@ -69,3 +69,12 @@
 .radio > .radio-message {
   margin-top: 0.8em;
 }
+.radio-now {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  color: var(--dim);
+  font-size: 0.65em;
+  text-align: center;
+}

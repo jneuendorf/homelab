@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { radio } from './index.ts';
+import { readIcyTitle } from './icy.ts';
 import { mediaSources, probe, wildcard } from './logic.ts';
 
 const reply = (status: number, headers: Record<string, string>) =>
@@ -49,4 +50,16 @@ test('default stations yield exactly their hosts as media sources', () => {
     'https://*.rndfnk.com',
     'https://radio.toggo.de',
   ]);
+});
+
+test('readIcyTitle reads StreamTitle after metaint audio bytes, across chunks', async () => {
+  const meta = new TextEncoder().encode("StreamTitle='Maus - Club';");
+  const block = new Uint8Array(Math.ceil(meta.length / 16) * 16);
+  block.set(meta);
+  const body = new Uint8Array([...new Uint8Array(8), block.length / 16, ...block, 1, 2, 3]);
+  const chunks = async function* () {
+    for (let i = 0; i < body.length; i += 5) yield body.subarray(i, i + 5);
+  };
+  assert.equal(await readIcyTitle(chunks(), 8), 'Maus - Club');
+  assert.equal(await readIcyTitle(chunks(), 200), '');
 });
