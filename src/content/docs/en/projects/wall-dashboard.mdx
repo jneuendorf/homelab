@@ -231,6 +231,30 @@ explains that the domain check is the likely cause.
 
 `stations` in the config only seeds an empty store; each needs its `hosts` (see the defaults).
 
+The playing tile shows the stream's now-playing text (its ICY `StreamTitle`), read by the server
+every 30 s. Many stations only send their own name there; Die Maus sends the current program.
+
+### Limits
+
+`limits` in the config caps listening for the whole household. There is one speaker, so there is
+one budget; who started the radio is only logged.
+
+- **`windows`:** the radio plays only inside one of them (they add up). `days` is `'mo-fr'`,
+  `['sa', 'su']` or omitted (every day). A time may be shifted in minutes: `` `${schoolStart}-10` ``
+  ends 10 min before a const the routine's `deadline` also uses. `until` ≤ `from` crosses midnight.
+- **`perDay`:** minutes per day. **`perSession`:** minutes of one listening run, then a forced
+  pause of **`cooldown`** minutes (default 10). A pause shorter than the cooldown doesn't start a
+  new run.
+- **`warnBefore`:** minutes before a forced stop that the tile and the ⏹ button count down
+  (default 2).
+- **`stations`:** extra windows per station id (e.g. _Gute Nacht_ only in the evening). Both the
+  global and the station windows must allow it: the stricter rule wins.
+
+Locked tiles turn grey and say when they open again (`🔒 ab 18:30`, `😴 Pause bis 10:20`,
+`⏳ morgen wieder`). The server counts the time from a heartbeat every 20 s, so a reload or a
+second screen doesn't reset it. In the **Eltern** view: **＋15 Min** (also ends a pause),
+**Heute ohne Limit**, and today's log (time, who was selected, station, minutes).
+
 ## iCloud calendar — read-only ICS
 
 Each feed needs a public ICS URL in its **`https://`** form (not webcal):

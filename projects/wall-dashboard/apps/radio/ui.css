@@ -78,3 +78,29 @@
   font-size: 0.65em;
   text-align: center;
 }
+.radio-summary {
+  min-height: 1.3em;
+  margin: 0 0 0.6em;
+  color: var(--dim);
+  font-size: 0.85em;
+}
+.radio-tile > button[data-play]:disabled {
+  opacity: 0.45;
+  -webkit-filter: grayscale(1);
+  filter: grayscale(1);
+}
+.radio-limits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5em;
+  margin-top: 1.2em;
+}
+.radio-log {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--dim);
+  font-size: 0.8em;
+}

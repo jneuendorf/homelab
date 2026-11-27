@@ -2,9 +2,10 @@
 // and remove stations on the tablet; `stations` here only seeds an empty store. Only the stored
 // stations' hosts are allowed as media sources (CSP), so each needs its redirect hosts in `hosts`.
 import { defineApp } from '#sdk';
+import type { Limits } from './limits.ts';
 import { mediaSources, type Station } from './logic.ts';
 
-export type RadioConfig = { stations: Station[] };
+export type RadioConfig = { stations: Station[]; limits?: Limits };
 
 const teddy = 'streamtdy.ir-media-tec.com';
 

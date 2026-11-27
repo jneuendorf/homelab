@@ -9,6 +9,9 @@ import { routine } from './apps/routine/index.ts';
 import { today } from './apps/today/index.ts';
 import { weather } from './apps/weather/index.ts';
 
+// shared by routine (deadline) and radio (morning radio ends 10 min before it)
+const schoolStart = '07:35';
+
 export default defineDashboard({
   title: 'Familie',
   locale: 'de-DE',
@@ -32,7 +35,7 @@ export default defineDashboard({
       ],
     }),
     routine({
-      deadline: '07:35',
+      deadline: schoolStart,
       // per user: plain values or (ctx) => value. Callbacks run in the browser and may import
       // anything (they are bundled), e.g. shared helpers.
       perUser: {
@@ -89,7 +92,21 @@ export default defineDashboard({
       ],
     }),
     awards(),
-    radio(),
+    radio({
+      // one budget for the household; parents can add 15 min or lift the limits for today
+      limits: {
+        windows: [
+          { days: 'mo-fr', from: '06:30', until: `${schoolStart}-10` },
+          { days: 'mo-fr', from: '14:00', until: '19:30' },
+          { days: ['sa', 'su'], from: '08:00', until: '19:30' },
+        ],
+        perDay: 60,
+        perSession: 30,
+        cooldown: 15,
+        warnBefore: 2,
+        stations: { 'teddy-gutenacht': { windows: [{ from: '18:30', until: '19:30' }] } },
+      },
+    }),
     weather({ lat: 52.52, lon: 13.41 }),
   ],
 });
