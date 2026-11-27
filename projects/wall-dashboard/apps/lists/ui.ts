@@ -74,6 +74,7 @@ export const mount: Mount<ListsConfig> = (el, ctx) => {
     // not crypto.randomUUID(): it needs a secure context, and the tablet talks plain http on the LAN
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     save([...entries, { id, text, done: false }]);
+    ctx.log(`＋ ${text} (${active.label})`);
     $(el, '.list-add input').focus(); // render() replaced the form
   };
 
@@ -84,9 +85,15 @@ export const mount: Mount<ListsConfig> = (el, ctx) => {
       active = lists.find((l) => l.id === target.dataset.list) ?? active;
       return void load();
     }
-    if (target.dataset.entry)
-      save(entries.map((e) => (e.id === target.dataset.entry ? { ...e, done: !e.done } : e)));
-    if (target.classList.contains('list-clear')) save(entries.filter((e) => !e.done));
+    const entry = entries.find((e) => e.id === target.dataset.entry);
+    if (entry) {
+      save(entries.map((e) => (e === entry ? { ...e, done: !e.done } : e)));
+      ctx.log(`${entry.done ? '⬜' : '☑️'} ${entry.text} (${active.label})`);
+    }
+    if (target.classList.contains('list-clear')) {
+      ctx.log(`🗑 ${entries.filter((e) => e.done).length} erledigte gelöscht (${active.label})`);
+      save(entries.filter((e) => !e.done));
+    }
   };
 
   for (const list of lists)

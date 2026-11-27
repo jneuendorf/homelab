@@ -50,8 +50,11 @@ const nav = $(document, '#nav');
 const who = $(document, '#users');
 const main = $(document, '#main');
 
+// admin-only apps (the Protokoll) are listed while an admin is unlocked
+const listed = () => apps.filter((app) => !app.admin || (user?.admin && pin));
+
 const renderChrome = () => {
-  nav.innerHTML = apps
+  nav.innerHTML = listed()
     .map(
       (app) =>
         html`<button data-app="${app.id}" aria-current="${app === current ? 'page' : 'false'}">
@@ -82,11 +85,20 @@ const show = async () => {
   unmount();
   unmount = () => {};
   const mine = ++generation;
+  if (!listed().includes(current)) current = listed()[0];
   const app = current;
   renderChrome();
 
   const subscriptions: [string, (data: unknown) => void][] = [];
   const kv = (key: string) => `/api/${app.id}/kv/${encodeURIComponent(key)}`;
+  // every request says who is selected (for the activity log) and, while unlocked, the PIN
+  const headers = (init?: HeadersInit) => {
+    const all = new Headers(init);
+    if (user) all.set('x-user', user.id);
+    if (pin) all.set('x-pin', pin);
+    return all;
+  };
+  const json = { 'content-type': 'application/json' };
   const ctx: AppContext<unknown> = {
     config: forUser(app.config, user?.id),
     user: user?.admin ? null : user,
@@ -95,9 +107,10 @@ const show = async () => {
     locale,
     configFor: (userId) => forUser(app.config, userId),
     api: async (path, init) => {
-      const headers = new Headers(init?.headers);
-      if (pin) headers.set('x-pin', pin);
-      const res = await fetch(`/api/${app.id}/${path}`, { ...init, headers });
+      const res = await fetch(`/api/${app.id}/${path}`, {
+        ...init,
+        headers: headers(init?.headers),
+      });
       if (res.status === 403 && pin) lock(); // PIN changed on the server or locked out
       return res;
     },
@@ -109,12 +122,15 @@ const show = async () => {
       set: async (key, value) => {
         const body = JSON.stringify(value);
         ownWrites.set(`${app.id}:${key}`, body);
-        await fetch(kv(key), {
-          method: 'PUT',
-          headers: { 'content-type': 'application/json' },
-          body,
-        });
+        await fetch(kv(key), { method: 'PUT', headers: headers(json), body });
       },
+    },
+    log: (text) => {
+      fetch(`/api/${app.id}/log`, {
+        method: 'POST',
+        headers: headers(json),
+        body: JSON.stringify({ text }),
+      }).catch(() => {});
     },
     subscribe: (topic, cb) => {
       const full = `${app.id}:${topic}`;
@@ -143,7 +159,7 @@ const show = async () => {
 
 nav.onclick = (event) => {
   const id = (event.target as Element).closest<HTMLElement>('[data-app]')?.dataset.app;
-  const next = apps.find((app) => app.id === id);
+  const next = listed().find((app) => app.id === id);
   if (!next || next === current) return;
   current = next;
   remember('wall:app', next.id);

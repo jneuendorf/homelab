@@ -37,14 +37,14 @@ export type Usage = {
   /** current listening run (spans pauses shorter than the cooldown) */
   run: { start: number; end: number } | null;
   pauseUntil: number;
-  log: LogEntry[];
+  /** Plays ended since the last save; the server moves them to the activity log. */
+  ended: LogEntry[];
 };
 export type Block = { reason: 'window' | 'day' | 'pause'; until: number | null };
 
 const minute = 60_000;
 /** A play without a heartbeat for this long ended at its last beat (tab closed, reload). */
 export const staleMs = 90_000;
-const logSize = 200;
 const days: Day[] = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -59,7 +59,7 @@ export const emptyUsage = (now: number): Usage => ({
   play: null,
   run: null,
   pauseUntil: 0,
-  log: [],
+  ended: [],
 });
 
 const dayMatches = (spec: Window['days'], day: number) => {
@@ -182,7 +182,7 @@ export const end = (usage: Usage): Usage => {
     station: play.station,
     ms: play.last - play.start,
   };
-  return { ...usage, play: null, log: [...usage.log, entry].slice(-logSize) };
+  return { ...usage, play: null, ended: [...usage.ended, entry] };
 };
 
 export const start = (

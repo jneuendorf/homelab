@@ -17,7 +17,6 @@ let blocked = false;
 let rerender = () => {};
 // set by mount (the radio keeps playing after unmount, so these outlive it)
 let api: (path: string, init?: RequestInit) => Promise<Response> = fetch;
-let user: string | null = null;
 let limits: LimitsView | null = null;
 
 const send = (path: string, body = {}) =>
@@ -91,7 +90,7 @@ const disconnect = () => {
 };
 /** A tap: ask the server first (limits), then play. */
 const start = async (station: Station) => {
-  const view = await send('play', { station: station.id, user }).then(sync);
+  const view = await send('play', { station: station.id }).then(sync);
   if (!view || view.stations[station.id]) return; // blocked: the tile now says why
   play(station);
   clearInterval(beatTimer);
@@ -147,7 +146,6 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
   let now = { id: '', title: '' }; // now-playing title of the playing station
 
   api = ctx.api;
-  user = ctx.user?.id ?? null;
   const loadLimits = () => ctx.api('limits').then(sync);
 
   const refresh = async () => {
@@ -186,26 +184,12 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
     if (status === 'playing' && left != null) return `⏳ noch ${left} Min`;
     return { idle: '', loading: 'Verbinde …', playing: '🔊', error: '⚠️ nicht erreichbar' }[status];
   };
-  const name = (id: string | null) => ctx.users.find((u) => u.id === id)?.name ?? 'Alle';
   const adminLimits = () =>
     html`<div class="radio-limits">
       <button class="ui-btn" data-limit="extend">＋15 Min</button>
       <button class="ui-btn" data-limit="free">
         ${limits?.free ? 'Limits wieder an' : 'Heute ohne Limit'}
       </button>
-      <ul class="radio-log">
-        ${[...(limits?.log ?? [])]
-          .reverse()
-          .map((e) =>
-            raw(
-              html`<li>
-                ${hm(e.at)} · ${name(e.user)} ·
-                ${stations.find((s) => s.id === e.station)?.icon ?? '📻'}
-                ${Math.round(e.ms / 60_000)} Min
-              </li>`,
-            ),
-          )}
-      </ul>
     </div>`;
 
   const render = () => {

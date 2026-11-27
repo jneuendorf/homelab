@@ -99,6 +99,9 @@ export const mount: Mount<RoutineConfig> = (el, ctx) => {
     if (!label || !row) return;
     const { state: next, change } = toggle(state[row.user.id], label, row.items, Date.now());
     state = { ...state, [row.user.id]: next };
+    const icon = row.items.find((item) => item.label === label)?.icon ?? '';
+    const forWhom = ctx.user?.id === row.user.id ? '' : ` (für ${row.user.name})`;
+    ctx.log(`${next.done[label] ? '☑️' : '↩️'} ${icon} ${label}${forWhom}`);
     if (row.config.sound) chime(change === 'completed' ? [523, 659, 784, 1047] : [880]);
     render();
     ctx.store.set(key, state);

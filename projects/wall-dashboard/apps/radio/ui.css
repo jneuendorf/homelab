@@ -96,11 +96,3 @@
   gap: 0.5em;
   margin-top: 1.2em;
 }
-.radio-log {
-  flex-basis: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--dim);
-  font-size: 0.8em;
-}

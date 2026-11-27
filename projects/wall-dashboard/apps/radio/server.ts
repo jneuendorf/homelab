@@ -16,13 +16,12 @@ const nowPlaying = (station: Station) => {
   return title;
 };
 
-// The radio's limits view: what's blocked, when the playing station stops, and (for parents)
-// today's log. Screens re-read it on every 'usage' push and every heartbeat.
-const view = (config: RadioConfig, usage: rules.Usage, stations: Station[], admin: boolean) => {
+// The radio's limits view: what's blocked and when the playing station stops. Screens re-read it
+// on every 'usage' push and every heartbeat.
+const view = (config: RadioConfig, usage: rules.Usage, stations: Station[]) => {
   const limits = config.limits ?? {};
   const now = Date.now();
   const stop = rules.stopAt(limits, usage, now);
-  const today = rules.dayKey(new Date(now));
   return {
     configured: Object.keys(limits).length > 0,
     blocked: rules.check(limits, usage, now),
@@ -37,7 +36,6 @@ const view = (config: RadioConfig, usage: rules.Usage, stations: Station[], admi
         ? null
         : Math.max(0, (limits.perDay + usage.extra) * 60_000 - usage.used),
     free: usage.free,
-    log: admin ? usage.log.filter((e) => rules.dayKey(new Date(e.at)) === today) : [],
   };
 };
 export type LimitsView = ReturnType<typeof view>;
@@ -54,10 +52,22 @@ const handler: Handler<RadioConfig> = async (req, ctx) => {
   }
   const limits = ctx.config.limits ?? {};
   const now = Date.now();
-  const usage = rules.account(ctx.store.get<rules.Usage>('usage') ?? rules.emptyUsage(now), now);
-  const save = (next: rules.Usage) => ctx.store.set('usage', next); // pushes 'usage' to all screens
+  const stored = ctx.store.get<rules.Usage>('usage');
+  const usage = rules.account({ ...rules.emptyUsage(now), ...stored }, now);
+  const named = (id: string) => {
+    const s = stations.find((x) => x.id === id);
+    return s ? `${s.icon} ${s.label}` : '📻';
+  };
+  const save = (next: rules.Usage) => {
+    for (const p of next.ended)
+      ctx.log(
+        `${named(p.station)} · ${p.ms < 60_000 ? '< 1' : Math.round(p.ms / 60_000)} Min`,
+        p.user,
+      );
+    ctx.store.set('usage', { ...next, ended: [] }); // pushes 'usage' to all screens
+  };
   const json = (next: rules.Usage, extra = {}) =>
-    Response.json({ ...view(ctx.config, next, stations, ctx.admin), ...extra });
+    Response.json({ ...view(ctx.config, next, stations), ...extra });
   if (ctx.path === 'limits' && req.method === 'GET') return json(usage);
 
   if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
@@ -68,11 +78,9 @@ const handler: Handler<RadioConfig> = async (req, ctx) => {
     const station = stations.find((s) => s.id === body.station);
     if (!station) return new Response('not found', { status: 404 });
     const blocked = rules.check(limits, usage, now, station.id);
-    if (blocked)
-      return Response.json(view(ctx.config, usage, stations, ctx.admin), { status: 403 });
-    // the selected user, as the browser says: only for the log, the budget is shared
-    const user = ctx.users.some((u) => u.id === body.user) ? (body.user as string) : null;
-    const next = rules.start(limits, usage, now, station.id, user);
+    if (blocked) return Response.json(view(ctx.config, usage, stations), { status: 403 });
+    // the budget is shared; who was selected only goes into the activity log
+    const next = rules.start(limits, usage, now, station.id, ctx.user?.id ?? null);
     save(next);
     return json(next);
   }
@@ -90,11 +98,13 @@ const handler: Handler<RadioConfig> = async (req, ctx) => {
   if (!ctx.admin) return new Response('nur Eltern', { status: 403 });
   if (ctx.path === 'extend') {
     const next = rules.extend(usage, now, 15);
+    ctx.log('⏳ ＋15 Min Radio');
     save(next);
     return json(next);
   }
   if (ctx.path === 'free') {
     const next = { ...usage, free: !usage.free };
+    ctx.log(next.free ? '🔓 Radio heute ohne Limit' : '🔒 Radio-Limits wieder an');
     save(next);
     return json(next);
   }
@@ -115,9 +125,11 @@ const handler: Handler<RadioConfig> = async (req, ctx) => {
     }
     const station = { id: randomUUID(), label, icon: text('icon', 8) || '📻', url, hosts };
     ctx.store.set('stations', [...stations, station]);
+    ctx.log(`＋ Sender ${station.icon} ${label}`);
     return new Response(null, { status: 204 });
   }
   if (ctx.path === 'remove') {
+    if (stations.some((s) => s.id === body.id)) ctx.log(`✕ Sender ${named(body.id as string)}`);
     ctx.store.set(
       'stations',
       stations.filter((s) => s.id !== body.id),

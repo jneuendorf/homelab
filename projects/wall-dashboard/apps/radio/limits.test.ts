@@ -43,9 +43,9 @@ test('a full run forces a pause; a parent ends it and adds minutes', () => {
   assert.equal(stopped.stop, true);
   u = stopped.usage;
   assert.deepEqual(check(limits, u, at(28, 9, 25)), { reason: 'pause', until: at(28, 9, 30) });
-  assert.equal(u.log.length, 1);
-  assert.equal(u.log[0].user, 'kind1');
-  assert.equal(u.log[0].ms, 20 * min);
+  assert.equal(u.ended.length, 1);
+  assert.equal(u.ended[0].user, 'kind1');
+  assert.equal(u.ended[0].ms, 20 * min);
   assert.equal(check(limits, extend(u, at(28, 9, 25), 15), at(28, 9, 25)), null);
 });
 

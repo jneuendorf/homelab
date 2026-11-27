@@ -46,6 +46,8 @@ export type AppContext<C> = {
   store: Store;
   /** Listen to this app's pushes (store keys or server publish() topics). Auto-removed on unmount. */
   subscribe(topic: string, cb: (data: unknown) => void): void;
+  /** Adds a line to the activity log, as the selected user (parents read it in the Protokoll). */
+  log(text: string): void;
 };
 
 /** Draw into `el`; return a cleanup that stops timers etc. */
@@ -62,8 +64,13 @@ export type ServerContext<C> = {
   config: C & PerUser<C>;
   /** All users, incl. the admin — membersOf(users) for the members. */
   users: User[];
+  /** Selected on the screen that sent the request, as the browser says (an admin only with the
+   *  PIN). Good for the activity log, not for anything that must hold up (SECURITY.md). */
+  user: User | null;
   store: ServerStore;
   publish(topic: string, data: unknown): void;
+  /** Adds a line to the activity log, as `user` (default: ctx.user). */
+  log(text: string, user?: string | null): void;
   /** Path below /api/<app>/, e.g. "events". */
   path: string;
 };
@@ -75,6 +82,8 @@ export type AppDef<C> = {
   /** Omit label/ui for a server-only app (no menubar entry). */
   label?: string;
   icon?: string;
+  /** Listed in the menubar only while an admin is unlocked. */
+  admin?: boolean;
   defaults: C;
   ui?: () => Promise<{ mount: Mount<C> }>;
   server?: () => Promise<{ default: Handler<C> }>;
@@ -85,6 +94,9 @@ export type AppDef<C> = {
 
 // biome-ignore lint/suspicious/noExplicitAny: dashboard.apps mixes apps with different config types
 export type App<C = any> = AppDef<C> & { config: C & PerUser<C> };
+
+/** One line of the activity log (GET /api/<any app>/log, admins only). */
+export type LogEntry = { at: number; app: string; user: string | null; text: string };
 
 /** Turns an app definition into a typed factory: `routine({ deadline: '07:40' })`. */
 export const defineApp =

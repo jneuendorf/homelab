@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { dirname, extname, join, normalize, sep } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import type { Handler, ServerStore } from '#sdk';
+import type { Handler, LogEntry, ServerStore, User } from '#sdk';
 import { pinCheck } from './admin.ts';
 import { loadConfig } from './config.ts';
 import { isAllowedHost, isLan, isSameOrigin } from './net.ts';
@@ -14,6 +14,7 @@ const host = process.env.HOST ?? '0.0.0.0';
 const dbPath = process.env.WALL_DATA ?? join(import.meta.dirname, '../data/wall.db');
 const publicDir = join(import.meta.dirname, '../dist/public');
 const maxBody = 256 * 1024;
+const logDays = 90;
 const hostNames = (process.env.WALL_HOSTS ?? '')
   .split(',')
   .map((name) => name.trim().toLowerCase())
@@ -43,6 +44,19 @@ const getRow = db.prepare('SELECT value FROM kv WHERE app = ? AND key = ?');
 const setRow = db.prepare(
   'INSERT INTO kv (app, key, value) VALUES (?, ?, ?) ON CONFLICT (app, key) DO UPDATE SET value = excluded.value',
 );
+
+// Activity log of all apps: who did what, for the parents (not an audit trail, see SECURITY.md).
+db.exec(`CREATE TABLE IF NOT EXISTS log (
+  at INTEGER NOT NULL, app TEXT NOT NULL, user TEXT, text TEXT NOT NULL);
+  CREATE INDEX IF NOT EXISTS log_at ON log (at)`);
+const addRow = db.prepare('INSERT INTO log (at, app, user, text) VALUES (?, ?, ?, ?)');
+const pruneLog = db.prepare('DELETE FROM log WHERE at < ?');
+const readLog = db.prepare('SELECT at, app, user, text FROM log WHERE at >= ? ORDER BY at DESC');
+const addLog = (app: string, user: string | null, text: string) => {
+  const at = Date.now();
+  addRow.run(at, app, user, text.slice(0, 200));
+  pruneLog.run(at - logDays * 86_400_000);
+};
 
 const clients = new Set<ServerResponse>();
 const publish = (app: string, topic: string, data: unknown) => {
@@ -114,10 +128,36 @@ const events = (req: IncomingMessage, res: ServerResponse) => {
   req.on('close', () => clients.delete(res));
 };
 
+/** The user the screen says is selected; an admin only with a valid PIN. */
+const userOf = (req: IncomingMessage, admin: boolean): User | null => {
+  const user = dashboard.users.find((u) => u.id === req.headers['x-user']);
+  return user && (!user.admin || admin) ? user : null;
+};
+
 const api = async (req: IncomingMessage, res: ServerResponse, appId: string, path: string) => {
   const app = apps.get(appId);
   if (!app) return send(res, 404, 'unknown app');
   const handler = handlers.get(appId);
+  const pin = req.headers['x-pin']?.toString() ?? null;
+  const admin = pin !== null && checkPin(pin) === null;
+  const user = userOf(req, admin);
+
+  if (path === 'log') {
+    if (req.method === 'POST') {
+      const { text } = JSON.parse((await readBody(req)).toString('utf8'));
+      if (typeof text !== 'string' || !text.trim()) return send(res, 400, 'bad text');
+      addLog(appId, user?.id ?? null, text);
+      return send(res, 204, '');
+    }
+    if (req.method !== 'GET') return send(res, 405, 'method not allowed');
+    if (!admin) return send(res, 403, 'nur Eltern');
+    const days = Math.min(
+      logDays,
+      Number(new URL(req.url ?? '', 'http://x').searchParams.get('days')) || 7,
+    );
+    const entries = readLog.all(Date.now() - days * 86_400_000) as LogEntry[];
+    return send(res, 200, JSON.stringify(entries), types['.json']);
+  }
 
   // An app with a server handler owns its storage (validation, PINs): no raw kv writes around it.
   if (path.startsWith('kv/') && !handler) {
@@ -145,13 +185,14 @@ const api = async (req: IncomingMessage, res: ServerResponse, appId: string, pat
       body: hasBody ? await readBody(req) : undefined,
     },
   );
-  const pin = request.headers.get('x-pin');
   const response = await handler(request, {
-    admin: pin !== null && checkPin(pin) === null,
+    admin,
     config: app.config,
     users: dashboard.users,
+    user,
     store: storeFor(appId),
     publish: (topic, data) => publish(appId, topic, data),
+    log: (text, as = user?.id ?? null) => addLog(appId, as, text),
     path,
   });
   res.writeHead(response.status, Object.fromEntries(response.headers));

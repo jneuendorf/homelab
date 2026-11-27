@@ -127,7 +127,7 @@ An app is one folder. Its `index.ts` calls `defineApp`, which turns a definition
 label, defaults, lazy `ui` / `server` imports) into a **typed factory**: `routine({ deadline:
 '07:40' })`. The server never loads UI code, and the browser only loads the active app's chunk.
 
-<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={68} end={89} />
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={80} end={107} />
 
 - **UI:** `mount(el, ctx)` draws into `el` and returns a cleanup. Vanilla, React (`createRoot(el)`)
   or Svelte all fit; TS needs no per-app build (esbuild bundles it).
@@ -135,6 +135,11 @@ label, defaults, lazy `ui` / `server` imports) into a **typed factory**: `routin
   mounted at `/api/<app>/*`.
 - **Store:** every app gets `ctx.store.get/set` (SQLite via `node:sqlite`). Each `set` is pushed to
   all screens; `ctx.subscribe(key, cb)` listens and is removed on unmount.
+- **Activity log:** `ctx.log('☑️ 🪥 Zähne')` (UI) or `ctx.log(text)` in a handler adds a line for
+  the parents, together with the app and the user selected on that screen. The shell sends the
+  selection as `x-user` with every request (an admin counts only with the PIN); handlers read it
+  as `ctx.user`. An app with `admin: true` (the **Protokoll**) is listed only while a parent is
+  unlocked.
 
 <CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={30} end={51} />
 
@@ -145,7 +150,7 @@ label, defaults, lazy `ui` / `server` imports) into a **typed factory**: `routin
   browser bundle — only the variable name ships to the client. Server code (`server.ts`) is
   stubbed out of the bundle entirely.
 
-<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={109} end={117} />
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={133} end={135} />
 
 ## Config
 
@@ -153,7 +158,7 @@ One typed file lists users and apps; menubar order = array order. The repo holds
 sample**; the real one is `dashboard.local.ts` next to it, gitignored and only in the CT. Calendar
 URLs carry tokens, so they come from `.env` via `secret()`:
 
-<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={11} end={32} />
+<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={16} end={37} />
 
 **Users** are **members** — kids or adults, the apps don't care — plus at least one **admin**.
 `defineDashboard` adds a default admin, _Eltern_, unless a user has `admin: true`. Picking an admin
@@ -184,7 +189,7 @@ in the browser and are bundled, so they may import shared helpers.
 `ctx.calendar` holds today's events (this user's + family-wide, incl. `location`); `ctx.weather`
 the day parts from the weather app. A dynamic user from the sample:
 
-<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={49} end={80} />
+<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={54} end={86} />
 
 Done-state is keyed by item **label**, so a callback can add or drop items without scrambling
 checkmarks — keep labels unique per user. Badge ideas: [emojis.wiki/success](https://emojis.wiki/success/).
@@ -253,7 +258,16 @@ one budget; who started the radio is only logged.
 Locked tiles turn grey and say when they open again (`🔒 ab 18:30`, `😴 Pause bis 10:20`,
 `⏳ morgen wieder`). The server counts the time from a heartbeat every 20 s, so a reload or a
 second screen doesn't reset it. In the **Eltern** view: **＋15 Min** (also ends a pause),
-**Heute ohne Limit**, and today's log (time, who was selected, station, minutes).
+**Heute ohne Limit**. Every play lands in the **Protokoll** (who was selected, station, minutes).
+
+## Protokoll (activity log)
+
+`activity()` lists what happened in all apps over the last `days` (default 7), grouped by day and
+filterable by user: routine items checked or unchecked (with _für Kind 2_ when someone else's row
+was tapped), list entries, stars, radio plays and parent actions. Only parents see it: the
+menubar entry appears while unlocked, and the server checks the PIN. Lines older than 90 days are
+dropped. The user is whoever was selected on the screen, so it shows who _claimed_ to act, which
+is enough to settle "I didn't touch it" between kids, not more.
 
 ## iCloud calendar — read-only ICS
 
@@ -347,7 +361,7 @@ Typecheck config changes on the Mac first (`npm --prefix projects/wall-dashboard
    `ctx.store.set` and react to other screens with `ctx.subscribe` — the lists app does both:
 
    <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={58} end={67} />
-   <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={92} end={99} />
+   <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={99} end={106} />
 
 3. **Need secrets, validation or a remote fetch?** Add `server.ts` with a default `Handler` and
    point `server` at it. Omit `label` / `ui` for a server-only app without a menubar entry — the
