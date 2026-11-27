@@ -1,6 +1,6 @@
 // Menubar (left), user switcher (top-right), and the mount/unmount lifecycle for one app at a time.
 import dashboard from '#config';
-import { membersOf, forUser, type AppContext, type User } from '#sdk';
+import { type AppContext, forUser, membersOf, type User } from '#sdk';
 import { $, html, raw } from '#sdk/utils';
 
 const { users, locale = 'de-DE' } = dashboard;

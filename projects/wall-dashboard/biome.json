@@ -2,6 +2,6 @@
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": { "includes": ["**", "!dist", "!data", "!modules", "!config"] },
   "formatter": { "enabled": false },
-  "assist": { "enabled": false },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "linter": { "rules": { "style": { "noNonNullAssertion": "warn" } } }
 }

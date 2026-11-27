@@ -234,7 +234,11 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
               </button>
               ${ctx.admin
                 ? raw(
-                    html`<button class="ui-chip radio-remove" data-remove="${s.id}" aria-label="${s.label} entfernen">
+                    html`<button
+                      class="ui-chip radio-remove"
+                      data-remove="${s.id}"
+                      aria-label="${s.label} entfernen"
+                    >
                       ✕
                     </button>`,
                   )
@@ -246,12 +250,13 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
       ${ctx.admin && blocked && status === 'error'
         ? raw(
             html`<p class="radio-message">
-              ⚠️ ${playing?.label} leitet auf eine Adresse weiter, die nicht freigegeben
-              ist (welche, zeigt der Netzwerk-Tab der Browser-Entwicklertools). Die Domain-Prüfung ist vereinfacht (nur die übergeordnete Domain der
-              Weiterleitung wird freigegeben, siehe <code>wildcard()</code> in
-              <code>apps/radio/logic.ts</code>) und ist hier zu streng. Abhilfe: eine andere
-              Stream-Adresse des Senders probieren oder <code>wildcard()</code> auf das Paket
-              <code>tldts</code> (Public Suffix List) umstellen.
+              ⚠️ ${playing?.label} leitet auf eine Adresse weiter, die nicht freigegeben ist
+              (welche, zeigt der Netzwerk-Tab der Browser-Entwicklertools). Die Domain-Prüfung ist
+              vereinfacht (nur die übergeordnete Domain der Weiterleitung wird freigegeben, siehe
+              <code>wildcard()</code> in <code>apps/radio/logic.ts</code>) und ist hier zu streng.
+              Abhilfe: eine andere Stream-Adresse des Senders probieren oder
+              <code>wildcard()</code> auf das Paket <code>tldts</code> (Public Suffix List)
+              umstellen.
             </p>`,
           )
         : ''}

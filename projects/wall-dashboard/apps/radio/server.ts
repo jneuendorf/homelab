@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Handler } from '#sdk';
-import type { RadioConfig } from './index.ts';
 import { icyTitle } from './icy.ts';
+import type { RadioConfig } from './index.ts';
 import * as rules from './limits.ts';
 import { probe, type Station } from './logic.ts';
 

@@ -1,7 +1,7 @@
 // 1. apps with their own toolchain (package.json "build" script) build themselves
 // 2. esbuild bundles the shell + config; every app UI becomes a lazy chunk
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { build, type Plugin } from 'esbuild';
 import { configPath } from './server/config.ts';
 

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { radio } from './index.ts';
 import { readIcyTitle } from './icy.ts';
+import { radio } from './index.ts';
 import { mediaSources, probe, wildcard } from './logic.ts';
 
 const reply = (status: number, headers: Record<string, string>) =>

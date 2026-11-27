@@ -7,10 +7,7 @@ const maxMisses = 5;
 const lockMs = 60_000;
 
 /** Returns null for the right PIN, else why not. `expected`/`now` are injectable for tests. */
-export const pinCheck = (
-  expected = () => secret('ADMIN_PIN'),
-  now = Date.now,
-) => {
+export const pinCheck = (expected = () => secret('ADMIN_PIN'), now = Date.now) => {
   let misses = 0;
   let lockedUntil = 0;
   return (pin: string | null) => {

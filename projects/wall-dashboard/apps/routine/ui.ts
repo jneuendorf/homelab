@@ -1,9 +1,10 @@
 import type { Mount, User } from '#sdk';
 import { $, adoptStyle, chime, everyMinute, html, pad, raw } from '#sdk/utils';
-import { fetchEvents, type CalendarEvent } from '../calendar/index.ts';
+import { type CalendarEvent, fetchEvents } from '../calendar/index.ts';
 import { fetchWeather, type Weather } from '../weather/index.ts';
 import type { RoutineConfig, RoutineCtx } from './index.ts';
 import {
+  type DayState,
   dayKey,
   deadlineAt,
   defaultBadges,
@@ -11,7 +12,6 @@ import {
   leaderOf,
   resolve,
   toggle,
-  type DayState,
 } from './logic.ts';
 import css from './ui.css';
 

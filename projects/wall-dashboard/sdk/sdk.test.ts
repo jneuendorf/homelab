@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { membersOf, defaultAdmin, defineApp, defineDashboard, forUser } from './index.ts';
+import { defaultAdmin, defineApp, defineDashboard, forUser, membersOf } from './index.ts';
 import { html, raw } from './utils.ts';
 
 test('app defaults → instance config → sparse per-user override', () => {

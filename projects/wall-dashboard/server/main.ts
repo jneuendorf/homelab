@@ -70,11 +70,11 @@ for (const app of dashboard.apps)
 // ponytail: rebuilt per request (one sqlite read per app with csp); cache by store write if it shows up
 const contentSecurityPolicy = () => {
   const csp = structuredClone(baseCsp);
+  // app sources may come from stored data: nothing that could end a directive or the header
   for (const app of dashboard.apps)
     for (const [directive, sources] of Object.entries(
       app.csp?.({ config: app.config, store: storeFor(app.id) }) ?? {},
     ))
-      // app sources may come from stored data: nothing that could end a directive or the header
       csp[directive] = [...(csp[directive] ?? []), ...sources.filter((s) => /^[^\s;,]+$/.test(s))];
   return Object.entries(csp)
     .map(([directive, sources]) => [directive, ...new Set(sources)].join(' '))

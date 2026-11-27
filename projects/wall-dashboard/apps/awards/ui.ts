@@ -161,7 +161,9 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
           raw(
             html`<span class="ui-chip aw-chip" style="--user:${who(s.user)?.color ?? '#999'}">
               ${who(s.user)?.avatar ?? ''} ${s.icon} ${s.label} +${s.stars}
-              ${ctx.admin ? raw(html`<button class="ui-btn" data-confirm="${s.id}">✓</button>`) : ''}
+              ${ctx.admin
+                ? raw(html`<button class="ui-btn" data-confirm="${s.id}">✓</button>`)
+                : ''}
               <button class="ui-btn" data-drop="${s.id}">✕</button>
             </span>`,
           ),
@@ -194,7 +196,9 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
         <tr>
           <th></th>
           ${days.map((d) =>
-            raw(html`<th class="${d === today ? 'ui-tint today' : ''}">${fmt(d).split(',')[0]}</th>`),
+            raw(
+              html`<th class="${d === today ? 'ui-tint today' : ''}">${fmt(d).split(',')[0]}</th>`,
+            ),
           )}
         </tr>
         ${rows.map((row) =>

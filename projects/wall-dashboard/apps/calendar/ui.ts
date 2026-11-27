@@ -1,5 +1,5 @@
 import type { Mount } from '#sdk';
-import { fetchEvents, type CalendarConfig } from './index.ts';
+import { type CalendarConfig, fetchEvents } from './index.ts';
 import { agenda, useCalendarStyle } from './view.ts';
 
 export const mount: Mount<CalendarConfig> = (el, ctx) => {
