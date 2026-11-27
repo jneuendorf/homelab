@@ -125,3 +125,45 @@
   color: var(--dim);
   font-size: 0.95em;
 }
+
+/* Today's routines; the shown one is highlighted, a dot per user fills when they finished it. */
+.routine-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45em;
+}
+.routine-chip {
+  gap: 0.4em;
+  padding: 0.25em 0.7em;
+  font-size: 0.9em;
+}
+.routine-chip.on {
+  border-color: var(--accent);
+  font-weight: bold;
+}
+.routine-chip.past:not(.on),
+.routine-chip.next:not(.on) {
+  opacity: 0.65;
+}
+.routine-chip small {
+  color: var(--dim);
+}
+.rs-marks {
+  display: inline-flex;
+  gap: 0.2em;
+}
+.rs-mark {
+  width: 0.6em;
+  height: 0.6em;
+  border-radius: 50%;
+  border: 2px solid var(--user);
+}
+.rs-mark.done {
+  background: var(--user);
+}
+
+/* past or upcoming: read-only */
+.routine-row.closed .routine-item {
+  opacity: 0.55;
+  cursor: default;
+}

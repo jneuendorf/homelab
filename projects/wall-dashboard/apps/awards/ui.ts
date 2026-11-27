@@ -1,6 +1,5 @@
 import type { Mount, User } from '#sdk';
-import { $, adoptStyle, chime, everyMinute, html, raw } from '#sdk/utils';
-import { dayKey } from '../routine/logic.ts';
+import { $, adoptStyle, chime, dayKey, everyMinute, html, raw } from '#sdk/utils';
 import type { AwardsConfig } from './index.ts';
 import {
   addDays,

@@ -1,12 +1,14 @@
-// Morning checklist per user. Rows = users whose resolved `items` are non-empty, so parents
-// without items simply don't get a row. Done-state lives in the server store (syncs devices).
+// Checklists through the day (morning, afternoon, evening …), per user. Rows = users whose
+// resolved `items` are non-empty, so a routine without items for anyone is skipped that day.
+// Done-state lives in the server store (syncs devices).
 import { defineApp, type User } from '#sdk';
+import type { Days, Time } from '#sdk/utils';
 import type { CalendarEvent } from '../calendar/index.ts';
 import type { Weather } from '../weather/index.ts';
 
 export type Item = {
   icon: string;
-  /** Must be unique per user: it keys the done-state. */
+  /** Must be unique per user and routine: it keys the done-state. */
   label: string;
 };
 
@@ -31,11 +33,23 @@ export type RoutineCtx = {
   weather: Weather | null;
 };
 
+export type Routine = {
+  label: string;
+  icon: string;
+  /** No days = every day. */
+  days?: Days;
+  from: Time;
+  /** Default: the next routine's `from` that day, or midnight. Afterwards it is read-only. */
+  until?: Time;
+  /** Finishing before it adds the `beatDeadline` badge. */
+  deadline?: Time;
+  items?: Item[] | ((ctx: RoutineCtx) => Item[]);
+};
+
 export type RoutineConfig = {
-  /** "HH:mm", or null for no deadline. */
-  deadline: string | null;
   sound: boolean;
-  items: Item[] | ((ctx: RoutineCtx) => Item[]);
+  /** Keyed by id (it keys the done-state); perUser entries merge into these key by key. */
+  routines: Record<string, Routine>;
   badges: Partial<Badges> | ((ctx: RoutineCtx) => Partial<Badges>);
 };
 
@@ -43,6 +57,6 @@ export const routine = defineApp<RoutineConfig>({
   id: 'routine',
   label: 'Routine',
   icon: '✅',
-  defaults: { deadline: '07:35', sound: true, items: [], badges: {} },
+  defaults: { sound: true, routines: {}, badges: {} },
   ui: () => import('./ui.ts'),
 });

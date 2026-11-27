@@ -19,8 +19,17 @@ export const defaultAdmin: User = {
   admin: true,
 };
 
-/** Sparse per-user overrides, merged over the app's config by `forUser`. */
-export type PerUser<C> = { perUser?: Record<string, Partial<C>> };
+/** Every key optional, all the way down; arrays and functions stay whole (they are replaced). */
+export type DeepPartial<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends readonly unknown[]
+    ? T
+    : T extends object
+      ? { [K in keyof T]?: DeepPartial<T[K]> }
+      : T;
+
+/** Sparse per-user overrides, deep-merged over the app's config by `forUser`. */
+export type PerUser<C> = { perUser?: Record<string, DeepPartial<C>> };
 
 export type Store = {
   get<T = unknown>(key: string): Promise<T | null>;
@@ -124,10 +133,27 @@ export const defineDashboard = (dashboard: Dashboard): Dashboard => ({
 /** Members = everyone but the admins: the people apps track (routine rows, star goals …). */
 export const membersOf = (users: User[]) => users.filter((u) => !u.admin);
 
-// ponytail: shallow merge — a per-user value replaces the whole key, which is what lists want
+const isPlain = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && Object.getPrototypeOf(value) === Object.prototype;
+
+/** Plain objects merge key by key; anything else (arrays, functions, values) replaces. */
+export const deepMerge = (base: unknown, over: unknown): unknown => {
+  if (over === undefined) {
+    return base;
+  }
+  if (!isPlain(base) || !isPlain(over)) {
+    return over;
+  }
+  const merged = { ...base };
+  for (const [key, value] of Object.entries(over)) {
+    merged[key] = deepMerge(base[key], value);
+  }
+  return merged;
+};
+
 export const forUser = <C>(config: C & PerUser<C>, userId?: string | null): C => {
   const { perUser, ...base } = config;
-  return { ...base, ...(userId ? perUser?.[userId] : undefined) } as C;
+  return deepMerge(base, userId ? perUser?.[userId] : undefined) as C;
 };
 
 /** Server: the env var's value. Browser bundle: undefined — only the name ships to the client. */

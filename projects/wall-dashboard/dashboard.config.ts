@@ -10,8 +10,9 @@ import { routine } from './apps/routine/index.ts';
 import { today } from './apps/today/index.ts';
 import { weather } from './apps/weather/index.ts';
 
-// shared by routine (deadline) and radio (morning radio ends 10 min before it)
+// shared by routine and radio (morning radio ends 10 min before school, evening radio at bedtime)
 const schoolStart = '07:35';
+const bedtime = '19:30';
 
 export default defineDashboard({
   title: 'Familie',
@@ -36,20 +37,43 @@ export default defineDashboard({
       ],
     }),
     routine({
-      deadline: schoolStart,
-      // per user: plain values or (ctx) => value. Callbacks run in the browser and may import
-      // anything (they are bundled), e.g. shared helpers.
+      // times for everyone; perUser merges into them key by key (a kid can move a deadline)
+      routines: {
+        morning: {
+          label: 'Morgen',
+          icon: '🌅',
+          days: 'mo-fr',
+          from: '06:00',
+          deadline: schoolStart,
+        },
+        evening: { label: 'Abend', icon: '🌙', from: '18:00', deadline: bedtime },
+      },
+      // items and badges per user: plain values or (ctx) => value. Callbacks run in the browser and
+      // may import anything (they are bundled), e.g. shared helpers.
       perUser: {
         kind1: {
           badges: { leader: '🥇', done: '😎', beatDeadline: '⚡' },
-          items: [
-            { icon: '🛏️', label: 'Umziehen' },
-            { icon: '🥐', label: 'Frühstück' },
-            { icon: '🪥', label: 'Zähne' },
-            { icon: '👀', label: 'Stundenplan' },
-            { icon: '🥪🧃', label: 'Einpacken' },
-            { icon: '👕🧢', label: 'Anziehen' },
-          ],
+          routines: {
+            morning: {
+              items: [
+                { icon: '🛏️', label: 'Umziehen' },
+                { icon: '🥐', label: 'Frühstück' },
+                { icon: '🪥', label: 'Zähne' },
+                { icon: '👀', label: 'Stundenplan' },
+                { icon: '🥪🧃', label: 'Einpacken' },
+                { icon: '👕🧢', label: 'Anziehen' },
+              ],
+            },
+            evening: {
+              deadline: '20:00', // the older one goes to bed later
+              items: [
+                { icon: '🍽️', label: 'Tisch abräumen' },
+                { icon: '🎒', label: 'Ranzen packen' },
+                { icon: '🪥', label: 'Zähne' },
+                { icon: '📖', label: 'Lesen' },
+              ],
+            },
+          },
         },
         kind2: {
           // one emoji per badge from a pool, stable for the day
@@ -63,25 +87,36 @@ export default defineDashboard({
               beatDeadline: pick(['✨', '🔥', '🚀'], 2),
             };
           },
-          items: (ctx) => {
-            // ctx.calendar = this user's + family events today
-            const away = ctx.calendar.some(
-              (e) => e.location && !/schule|kita|zuhause/i.test(e.location),
-            );
-            const trip = ctx.calendar.some((e) => /ausflug/i.test(`${e.title} ${e.location}`));
-            const cold = (ctx.weather?.parts[0]?.temp ?? 20) < 8;
-            return [
-              { icon: '🛏️', label: 'Umziehen' },
-              { icon: '🧇', label: 'Frühstück' },
-              { icon: '👀', label: 'Stundenplan' },
-              ...(ctx.dayOfWeek === 2 ? [{ icon: '🎽', label: 'Sportzeug' }] : []),
-              ...(trip ? [{ icon: '🎒', label: 'Rucksack' }] : []),
-              ...(away ? [{ icon: '🚰', label: 'Trinkflasche' }] : []),
-              { icon: '🍱🥤', label: 'Einpacken' },
-              { icon: '🪥', label: 'Zähne' },
-              ...(cold ? [{ icon: '🧥', label: 'Jacke' }] : []),
-              { icon: '👕👟', label: 'Anziehen' },
-            ];
+          routines: {
+            morning: {
+              items: (ctx) => {
+                // ctx.calendar = this user's + family events today
+                const away = ctx.calendar.some(
+                  (e) => e.location && !/schule|kita|zuhause/i.test(e.location),
+                );
+                const trip = ctx.calendar.some((e) => /ausflug/i.test(`${e.title} ${e.location}`));
+                const cold = (ctx.weather?.parts[0]?.temp ?? 20) < 8;
+                return [
+                  { icon: '🛏️', label: 'Umziehen' },
+                  { icon: '🧇', label: 'Frühstück' },
+                  { icon: '👀', label: 'Stundenplan' },
+                  ...(ctx.dayOfWeek === 2 ? [{ icon: '🎽', label: 'Sportzeug' }] : []),
+                  ...(trip ? [{ icon: '🎒', label: 'Rucksack' }] : []),
+                  ...(away ? [{ icon: '🚰', label: 'Trinkflasche' }] : []),
+                  { icon: '🍱🥤', label: 'Einpacken' },
+                  { icon: '🪥', label: 'Zähne' },
+                  ...(cold ? [{ icon: '🧥', label: 'Jacke' }] : []),
+                  { icon: '👕👟', label: 'Anziehen' },
+                ];
+              },
+            },
+            evening: {
+              items: [
+                { icon: '🛁', label: 'Waschen' },
+                { icon: '🪥', label: 'Zähne' },
+                { icon: '🩳', label: 'Schlafanzug' },
+              ],
+            },
           },
         },
       },
@@ -98,8 +133,8 @@ export default defineDashboard({
       limits: {
         windows: [
           { days: 'mo-fr', from: '06:30', until: `${schoolStart}-10` },
-          { days: 'mo-fr', from: '14:00', until: '19:30' },
-          { days: ['sa', 'su'], from: '08:00', until: '19:30' },
+          { days: 'mo-fr', from: '14:00', until: bedtime },
+          { days: ['sa', 'su'], from: '08:00', until: bedtime },
         ],
         perDay: 60,
         perSession: 30,

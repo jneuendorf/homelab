@@ -53,6 +53,39 @@ export const adoptStyle = (id: string, css: string) => {
 
 export const pad = (n: number) => String(n).padStart(2, '0');
 
+/** Local calendar day (not UTC), "YYYY-MM-DD" — the usual per-day store key. */
+export const dayKey = (d = new Date()) =>
+  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+// Times and days shared by the apps' configs (routine windows, radio limits), so one const in
+// dashboard.config.ts can drive several apps.
+export type Day = 'mo' | 'tu' | 'we' | 'th' | 'fr' | 'sa' | 'su';
+/** 'mo', 'mo-fr' (may wrap: 'fr-mo') or a list. None = every day. */
+export type Days = Day | `${Day}-${Day}` | Day[];
+/** 'HH:MM', optionally shifted by minutes: '07:35-10' = 07:25. */
+export type Time = `${number}:${number}` | `${number}:${number}${'+' | '-'}${number}`;
+
+const weekdays: Day[] = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
+
+/** Whether `days` includes weekday `day` (0 = Sunday, as Date.getDay()). */
+export const dayMatches = (days: Days | undefined, day: number) => {
+  if (!days) {
+    return true;
+  }
+  if (Array.isArray(days)) {
+    return days.some((d) => weekdays.indexOf(d) === day);
+  }
+  const [from, until = from] = days.split('-').map((d) => weekdays.indexOf(d as Day));
+  return from <= until ? day >= from && day <= until : day >= from || day <= until;
+};
+
+/** `time` on the calendar day of `date`, in ms. */
+export const timeAt = (time: Time, date: Date) => {
+  const [, h, m, sign, shift] = /^(\d+):(\d+)(?:([+-])(\d+))?$/.exec(time) ?? [];
+  const offset = shift ? (sign === '-' ? -1 : 1) * Number(shift) : 0;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), +h, +m + offset).getTime();
+};
+
 // Timers run on a monotonic clock, Date.now() on the (NTP-adjusted, privacy-rounded) wall clock:
 // a timeout aimed exactly at a boundary can fire a few ms early and render the previous second.
 // Firing slightly late is invisible; any value above that drift works.

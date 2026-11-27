@@ -124,10 +124,10 @@ inject HTML. Calendar URLs stay in `.env` and are only read server-side.
 ## The app contract
 
 An app is one folder. Its `index.ts` calls `defineApp`, which turns a definition (id, menubar
-label, defaults, lazy `ui` / `server` imports) into a **typed factory**: `routine({ deadline:
-'07:40' })`. The server never loads UI code, and the browser only loads the active app's chunk.
+label, defaults, lazy `ui` / `server` imports) into a **typed factory**: `weather({ lat:
+52.52, lon: 13.41 })`. The server never loads UI code, and the browser only loads the active app's chunk.
 
-<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={80} end={107} />
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={89} end={116} />
 
 - **UI:** `mount(el, ctx)` draws into `el` and returns a cleanup. Vanilla, React (`createRoot(el)`)
   or Svelte all fit; TS needs no per-app build (esbuild bundles it).
@@ -141,16 +141,16 @@ label, defaults, lazy `ui` / `server` imports) into a **typed factory**: `routin
   as `ctx.user`. An app with `admin: true` (the **Protokoll**) is listed only while a parent is
   unlocked.
 
-<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={30} end={51} />
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={39} end={60} />
 
 - **Per-user config:** layers are app defaults → instance config → `perUser[id]` (sparse,
-  shallow). `ctx.config` is already resolved for the selected user; `ctx.configFor(id)` serves apps
+  deep: plain objects merge key by key, arrays and functions replace). `ctx.config` is already resolved for the selected user; `ctx.configFor(id)` serves apps
   that show several users at once.
 - **Secrets:** `secret('NAME')` reads `process.env` on the server and is `undefined` in the
   browser bundle — only the variable name ships to the client. Server code (`server.ts`) is
   stubbed out of the bundle entirely.
 
-<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={133} end={135} />
+<CodeSnippet file="projects/wall-dashboard/sdk/index.ts" start={159} end={161} />
 
 ## Config
 
@@ -158,7 +158,7 @@ One typed file lists users and apps; menubar order = array order. The repo holds
 sample**; the real one is `dashboard.local.ts` next to it, gitignored and only in the CT. Calendar
 URLs carry tokens, so they come from `.env` via `secret()`:
 
-<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={16} end={37} />
+<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={17} end={38} />
 
 **Users** are **members** — kids or adults, the apps don't care — plus at least one **admin**.
 `defineDashboard` adds a default admin, _Eltern_, unless a user has `admin: true`. Picking an admin
@@ -174,25 +174,40 @@ This keeps kids out; it isn't real security (one shared, short PIN over plain HT
 `theme` is `kids`, `night` or `contrast`. The config is bundled into the browser too, so **edits
 need a rebuild** — re-run `install-shell.sh` (below) after changing it.
 
-## Routine callbacks
+## Routines
 
-The morning checklist shows one row per member with non-empty `items`. Each row stays on one line:
-its font shrinks with the screen width and the item count (container units; on iPadOS < 16 the
-chips wrap instead). Tap to check off; state lives in the server store, so every screen agrees, and
-it resets per day. First to finish gets the `leader` badge, finishing before `deadline` adds `beatDeadline`.
+Checklists through the day — morning, afternoon, evening — with one row per member with non-empty
+`items`. Each row stays on one line: its font shrinks with the screen width and the item count
+(container units; on iPadOS < 16 the chips wrap instead). Tap to check off; state lives in the
+server store, so every screen agrees, and it resets per day. First to finish a routine gets the
+`leader` badge, finishing before its `deadline` adds `beatDeadline`.
 
-Per user, `items` and `badges` are a plain value **or** a `(ctx) => value` callback. Callbacks run
-in the browser and are bundled, so they may import shared helpers.
+- **Times:** a routine runs from its `from` until its `until`, by default until the next routine's
+  `from` that day (or midnight). `days` and times use the radio's format (`'mo-fr'`,
+  `` `${schoolStart}-10` ``), so one const can drive both apps.
+- **Which one shows:** the running routine, else the next, else the last. A strip on top lists
+  today's routines with a dot per member that fills once they finished it. Tapping a chip opens that
+  routine; after a minute without touches the screen returns to the current one. In _Alle_, each row
+  shows its member's current routine (with its icon when they differ). Only the running routine can
+  be checked; past and upcoming ones are read-only.
+- **Per user:** the times sit at the top level, and `perUser` merges into them key by key, so a
+  member adds `items` or moves a `deadline` without repeating the rest. A routine without items for
+  anyone that day (weekend, callback returning `[]`) is skipped.
 
-<CodeSnippet file="projects/wall-dashboard/apps/routine/index.ts" start={22} end={40} />
+<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={39} end={77} />
+
+`items` and `badges` are a plain value **or** a `(ctx) => value` callback. Callbacks run in the
+browser and are bundled, so they may import shared helpers.
+
+<CodeSnippet file="projects/wall-dashboard/apps/routine/index.ts" start={24} end={54} />
 
 `ctx.calendar` holds today's events (this user's + family-wide, incl. `location`); `ctx.weather`
-the day parts from the weather app. A dynamic user from the sample:
+the day parts from the weather app. A dynamic morning from the sample:
 
-<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={54} end={86} />
+<CodeSnippet file="projects/wall-dashboard/dashboard.config.ts" start={90} end={112} />
 
-Done-state is keyed by item **label**, so a callback can add or drop items without scrambling
-checkmarks — keep labels unique per user. Badge ideas: [emojis.wiki/success](https://emojis.wiki/success/).
+Done-state is keyed by routine and item **label**, so a callback can add or drop items without
+scrambling checkmarks — keep labels unique per user and routine. Badge ideas: [emojis.wiki/success](https://emojis.wiki/success/).
 
 ## Star chart (awards)
 
@@ -246,7 +261,7 @@ one budget; who started the radio is only logged.
 
 - **`windows`:** the radio plays only inside one of them (they add up). `days` is `'mo-fr'`,
   `['sa', 'su']` or omitted (every day). A time may be shifted in minutes: `` `${schoolStart}-10` ``
-  ends 10 min before a const the routine's `deadline` also uses. `until` ≤ `from` crosses midnight.
+  ends 10 min before a const the morning routine's `deadline` also uses. `until` ≤ `from` crosses midnight.
 - **`perDay`:** minutes per day. **`perSession`:** minutes of one listening run, then a forced
   pause of **`cooldown`** minutes (default 10). A pause shorter than the cooldown doesn't start a
   new run.

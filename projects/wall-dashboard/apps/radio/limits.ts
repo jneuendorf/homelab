@@ -1,12 +1,10 @@
 // Radio limits: pure rules over the household's usage (one speaker = one budget for everyone).
 // Server-side state, so a reload or another screen can't reset it.
+import { type Days, dayKey, dayMatches, type Time, timeAt } from '#sdk/utils';
 
-export type Day = 'mo' | 'tu' | 'we' | 'th' | 'fr' | 'sa' | 'su';
-/** 'HH:MM', optionally shifted by minutes: '07:35-10' = 07:25. Share a const with routine's
- *  deadline to end radio time before it. */
-export type Time = `${number}:${number}` | `${number}:${number}${'+' | '-'}${number}`;
-/** until ≤ from crosses midnight: { from: '19:00', until: '07:00' }. No days = every day. */
-export type Window = { days?: Day | `${Day}-${Day}` | Day[]; from: Time; until: Time };
+/** until ≤ from crosses midnight: { from: '19:00', until: '07:00' }. No days = every day.
+ *  Share consts with the routine's times, e.g. `until: \`${schoolStart}-10\``. */
+export type Window = { days?: Days; from: Time; until: Time };
 
 export type Limits = {
   /** Radio plays only inside one of these (they add up). None = any time. */
@@ -45,11 +43,6 @@ export type Block = { reason: 'window' | 'day' | 'pause'; until: number | null }
 const minute = 60_000;
 /** A play without a heartbeat for this long ended at its last beat (tab closed, reload). */
 export const staleMs = 90_000;
-const days: Day[] = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
-
-const pad = (n: number) => String(n).padStart(2, '0');
-export const dayKey = (d: Date) =>
-  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 export const emptyUsage = (now: number): Usage => ({
   day: dayKey(new Date(now)),
@@ -61,23 +54,6 @@ export const emptyUsage = (now: number): Usage => ({
   pauseUntil: 0,
   ended: [],
 });
-
-const dayMatches = (spec: Window['days'], day: number) => {
-  if (!spec) {
-    return true;
-  }
-  if (Array.isArray(spec)) {
-    return spec.some((d) => days.indexOf(d) === day);
-  }
-  const [from, until = from] = spec.split('-').map((d) => days.indexOf(d as Day));
-  return from <= until ? day >= from && day <= until : day >= from || day <= until;
-};
-
-const timeAt = (time: Time, date: Date) => {
-  const [, h, m, sign, shift] = /^(\d+):(\d+)(?:([+-])(\d+))?$/.exec(time) ?? [];
-  const offset = shift ? (sign === '-' ? -1 : 1) * Number(shift) : 0;
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), +h, +m + offset).getTime();
-};
 
 /** The windows as [start, end] ms intervals from yesterday to a week ahead. */
 const intervals = (windows: Window[], now: number) => {
