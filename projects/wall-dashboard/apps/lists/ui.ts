@@ -70,7 +70,9 @@ export const mount: Mount<ListsConfig> = (el, ctx) => {
     event.preventDefault();
     const input = (event.target as HTMLFormElement).elements.namedItem('text') as HTMLInputElement;
     const text = input.value.trim();
-    if (!text) return;
+    if (!text) {
+      return;
+    }
     // not crypto.randomUUID(): it needs a secure context, and the tablet talks plain http on the LAN
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     save([...entries, { id, text, done: false }]);
@@ -80,7 +82,9 @@ export const mount: Mount<ListsConfig> = (el, ctx) => {
 
   el.onclick = (event) => {
     const target = (event.target as Element).closest<HTMLElement>('button');
-    if (!target) return;
+    if (!target) {
+      return;
+    }
     if (target.dataset.list) {
       active = lists.find((l) => l.id === target.dataset.list) ?? active;
       return void load();
@@ -96,12 +100,15 @@ export const mount: Mount<ListsConfig> = (el, ctx) => {
     }
   };
 
-  for (const list of lists)
+  for (const list of lists) {
     ctx.subscribe(`list:${list.id}`, (data) => {
-      if (list !== active) return;
+      if (list !== active) {
+        return;
+      }
       entries = (data as Entry[]) ?? [];
       render();
     });
+  }
 
   load();
   return () => {};

@@ -27,14 +27,22 @@ const describe = (
 
 const handler: Handler<AwardsConfig> = async (req, ctx) => {
   const state = ctx.store.get<State>('state') ?? emptyState(ctx.config.missions);
-  if (ctx.path === 'state' && req.method === 'GET') return Response.json(state);
-  if (req.method !== 'POST') return new Response('method not allowed', { status: 405 });
+  if (ctx.path === 'state' && req.method === 'GET') {
+    return Response.json(state);
+  }
+  if (req.method !== 'POST') {
+    return new Response('method not allowed', { status: 405 });
+  }
 
-  if (parentActions.has(ctx.path) && !ctx.admin) return new Response('nur Eltern', { status: 403 });
+  if (parentActions.has(ctx.path) && !ctx.admin) {
+    return new Response('nur Eltern', { status: 403 });
+  }
   const userIds = membersOf(ctx.users).map((u) => u.id);
   const body = await req.json();
   const next = apply(state, ctx.path, body, userIds, randomUUID);
-  if (next === state) return new Response(null, { status: 204 });
+  if (next === state) {
+    return new Response(null, { status: 204 });
+  }
   ctx.store.set('state', next); // pushes topic "state" to every screen
   const name = (id: unknown) => ctx.users.find((u) => u.id === id)?.name ?? 'Familie';
   ctx.log(describe(ctx.path, body ?? {}, state, name));

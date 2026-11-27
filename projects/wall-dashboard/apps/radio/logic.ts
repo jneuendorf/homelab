@@ -20,7 +20,9 @@ const twoPart = /^(co|com|org|net|ac|gov)\.[a-z]{2}$/; // example.co.uk → not 
 export const wildcard = (host: string) => {
   const [name, port] = host.split(':');
   const parent = name.split('.').slice(1).join('.');
-  if (!parent.includes('.') || twoPart.test(parent)) return host;
+  if (!parent.includes('.') || twoPart.test(parent)) {
+    return host;
+  }
   return `*.${parent}${port ? `:${port}` : ''}`;
 };
 
@@ -28,11 +30,15 @@ type Fetch = (url: URL, init: RequestInit) => Promise<Response>;
 
 /** Follows redirects by hand to learn every host the browser will hit; rejects non-audio. */
 export const probe = async (url: string, fetchFn: Fetch = fetch): Promise<string[]> => {
-  if (!URL.canParse(url)) throw new Error('Ungültige Adresse');
+  if (!URL.canParse(url)) {
+    throw new Error('Ungültige Adresse');
+  }
   let next = new URL(url);
   const hosts: string[] = [];
   for (let hop = 0; hop < 5; hop++) {
-    if (next.protocol !== 'https:') throw new Error('Nur https-Adressen');
+    if (next.protocol !== 'https:') {
+      throw new Error('Nur https-Adressen');
+    }
     hosts.push(hop === 0 ? next.host : wildcard(next.host));
     const res = await fetchFn(next, { redirect: 'manual', signal: AbortSignal.timeout(5000) });
     await res.body?.cancel(); // a live stream never ends
@@ -41,11 +47,14 @@ export const probe = async (url: string, fetchFn: Fetch = fetch): Promise<string
       next = new URL(location, next);
       continue;
     }
-    if (!res.ok) throw new Error(`Sender antwortet mit ${res.status}`);
+    if (!res.ok) {
+      throw new Error(`Sender antwortet mit ${res.status}`);
+    }
     // playlists (.m3u/.pls) and HLS don't play in a plain <audio> everywhere
     const type = res.headers.get('content-type') ?? '';
-    if (!/^audio\//i.test(type) || /mpegurl|scpls/i.test(type))
+    if (!/^audio\//i.test(type) || /mpegurl|scpls/i.test(type)) {
       throw new Error('Kein Audio-Stream (MP3/AAC-Adresse nötig)');
+    }
     return [...new Set(hosts)];
   }
   throw new Error('Zu viele Weiterleitungen');

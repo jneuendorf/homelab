@@ -29,13 +29,17 @@ export const mount: Mount<TodayConfig> = (el, ctx) => {
     const now = new Date();
     secondsEl.textContent = pad(now.getSeconds());
     const hm = now.toLocaleTimeString(ctx.locale, { hour: '2-digit', minute: '2-digit' });
-    if (hmEl.textContent !== hm) hmEl.textContent = hm;
+    if (hmEl.textContent !== hm) {
+      hmEl.textContent = hm;
+    }
     const date = now.toLocaleDateString(ctx.locale, {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
     });
-    if (dateEl.textContent !== date) dateEl.textContent = date;
+    if (dateEl.textContent !== date) {
+      dateEl.textContent = date;
+    }
   };
   const showWeather = (w: Weather | null) => {
     weatherEl.innerHTML = w

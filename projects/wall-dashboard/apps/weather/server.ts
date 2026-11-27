@@ -30,7 +30,9 @@ let cache: { at: number; data: Weather } | null = null;
 const ttl = 30 * 60 * 1000;
 
 const handler: Handler<WeatherConfig> = async (_req, { config, path }) => {
-  if (path !== 'now') return new Response('not found', { status: 404 });
+  if (path !== 'now') {
+    return new Response('not found', { status: 404 });
+  }
   if (!cache || Date.now() - cache.at > ttl) {
     try {
       const url =
@@ -38,11 +40,15 @@ const handler: Handler<WeatherConfig> = async (_req, { config, path }) => {
         '&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code' +
         '&timezone=auto&forecast_days=1';
       const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-      if (!res.ok) throw new Error(`open-meteo ${res.status}`);
+      if (!res.ok) {
+        throw new Error(`open-meteo ${res.status}`);
+      }
       cache = { at: Date.now(), data: parse(await res.json(), config) };
     } catch (error) {
       console.warn(`weather: ${error}`);
-      if (!cache) return new Response('weather unavailable', { status: 502 });
+      if (!cache) {
+        return new Response('weather unavailable', { status: 502 });
+      }
     }
   }
   return Response.json(cache.data);

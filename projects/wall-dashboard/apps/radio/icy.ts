@@ -21,10 +21,13 @@ const openIcy = (url: string, hops = 5): Promise<IncomingMessage> =>
     const options = { headers: { 'icy-metadata': '1' }, timeout: 5000, insecureHTTPParser: true };
     const req = https.get(url, options, (res) => {
       const { location } = res.headers;
-      if (!location || (res.statusCode ?? 0) < 300 || (res.statusCode ?? 0) >= 400)
+      if (!location || (res.statusCode ?? 0) < 300 || (res.statusCode ?? 0) >= 400) {
         return resolve(res);
+      }
       res.destroy();
-      if (!hops) return reject(new Error('too many redirects'));
+      if (!hops) {
+        return reject(new Error('too many redirects'));
+      }
       resolve(openIcy(new URL(location, url).href, hops - 1)); // http: → https.get throws
     });
     req.on('timeout', () => req.destroy(new Error('timeout')));
@@ -40,7 +43,9 @@ export const readIcyTitle = async (stream: AsyncIterable<Uint8Array>, metaint: n
     next.set(buf);
     next.set(chunk, buf.length);
     buf = next;
-    if (buf.length < need()) continue;
+    if (buf.length < need()) {
+      continue;
+    }
     const meta = new TextDecoder().decode(buf.subarray(metaint + 1, need()));
     return /StreamTitle='(.*?)';/.exec(meta)?.[1]?.trim() ?? '';
   }

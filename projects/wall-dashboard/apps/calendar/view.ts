@@ -10,8 +10,12 @@ const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 export const dayLabel = (date: Date, locale: string) => {
   const today = new Date();
   const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-  if (sameDay(date, today)) return 'Heute';
-  if (sameDay(date, tomorrow)) return 'Morgen';
+  if (sameDay(date, today)) {
+    return 'Heute';
+  }
+  if (sameDay(date, tomorrow)) {
+    return 'Morgen';
+  }
   return date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' });
 };
 
@@ -28,7 +32,9 @@ const row = (e: CalendarEvent, locale: string) => {
 
 /** Events grouped under day headings; multi-day all-day events show on the first visible day. */
 export const agenda = (events: CalendarEvent[], locale: string, empty = 'Nichts geplant 🎈') => {
-  if (!events.length) return html`<p class="ui-dim">${empty}</p>`;
+  if (!events.length) {
+    return html`<p class="ui-dim">${empty}</p>`;
+  }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const days = new Map<string, { date: Date; events: CalendarEvent[] }>();

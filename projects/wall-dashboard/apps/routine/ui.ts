@@ -44,7 +44,9 @@ export const mount: Mount<RoutineConfig> = (el, ctx) => {
 
   const deadlineText = () => {
     const at = deadlineAt(ctx.config.deadline);
-    if (at == null) return '';
+    if (at == null) {
+      return '';
+    }
     const left = Math.round((at - Date.now()) / 60_000);
     return left >= 0
       ? `⏰ noch ${left} min bis ${ctx.config.deadline}`
@@ -96,13 +98,17 @@ export const mount: Mount<RoutineConfig> = (el, ctx) => {
     const button = (event.target as Element).closest<HTMLElement>('[data-label]');
     const row = rows().find((r) => r.user.id === button?.dataset.user);
     const label = button?.dataset.label;
-    if (!label || !row) return;
+    if (!label || !row) {
+      return;
+    }
     const { state: next, change } = toggle(state[row.user.id], label, row.items, Date.now());
     state = { ...state, [row.user.id]: next };
     const icon = row.items.find((item) => item.label === label)?.icon ?? '';
     const forWhom = ctx.user?.id === row.user.id ? '' : ` (für ${row.user.name})`;
     ctx.log(`${next.done[label] ? '☑️' : '↩️'} ${icon} ${label}${forWhom}`);
-    if (row.config.sound) chime(change === 'completed' ? [523, 659, 784, 1047] : [880]);
+    if (row.config.sound) {
+      chime(change === 'completed' ? [523, 659, 784, 1047] : [880]);
+    }
     render();
     ctx.store.set(key, state);
   };
@@ -122,7 +128,9 @@ export const mount: Mount<RoutineConfig> = (el, ctx) => {
   // another screen (or a phone) checked something off
   const follow = (topic: string) =>
     ctx.subscribe(topic, (data) => {
-      if (topic !== key) return;
+      if (topic !== key) {
+        return;
+      }
       state = (data as DayState) ?? {};
       render();
     });

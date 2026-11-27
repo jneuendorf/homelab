@@ -9,14 +9,16 @@ for (const [net, bits] of [
   ['172.16.0.0', 12], // gitleaks:allow (RFC1918 range, not a host)
   ['192.168.0.0', 16], // gitleaks:allow (RFC1918 range, not a host)
   ['169.254.0.0', 16],
-] as const)
+] as const) {
   lan.addSubnet(net, bits, 'ipv4');
+}
 for (const [net, bits] of [
   ['::1', 128],
   ['fc00::', 7],
   ['fe80::', 10],
-] as const)
+] as const) {
   lan.addSubnet(net, bits, 'ipv6');
+}
 
 export const isLan = (address = '') => {
   const ip = address.replace(/^::ffff:/, '');

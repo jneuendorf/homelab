@@ -63,8 +63,12 @@ export const emptyUsage = (now: number): Usage => ({
 });
 
 const dayMatches = (spec: Window['days'], day: number) => {
-  if (!spec) return true;
-  if (Array.isArray(spec)) return spec.some((d) => days.indexOf(d) === day);
+  if (!spec) {
+    return true;
+  }
+  if (Array.isArray(spec)) {
+    return spec.some((d) => days.indexOf(d) === day);
+  }
   const [from, until = from] = spec.split('-').map((d) => days.indexOf(d as Day));
   return from <= until ? day >= from && day <= until : day >= from || day <= until;
 };
@@ -81,10 +85,14 @@ const intervals = (windows: Window[], now: number) => {
   return windows.flatMap((w) =>
     [-1, 0, 1, 2, 3, 4, 5, 6, 7].flatMap((offset) => {
       const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset);
-      if (!dayMatches(w.days, date.getDay())) return [];
+      if (!dayMatches(w.days, date.getDay())) {
+        return [];
+      }
       const start = timeAt(w.from, date);
       let end = timeAt(w.until, date);
-      if (end <= start) end = timeAt(w.until, new Date(date.getTime() + 86_400_000));
+      if (end <= start) {
+        end = timeAt(w.until, new Date(date.getTime() + 86_400_000));
+      }
       return [[start, end] as const];
     }),
   );
@@ -92,9 +100,13 @@ const intervals = (windows: Window[], now: number) => {
 
 /** null = inside a window (or none set), else when the next one opens. */
 const windowBlock = (windows: Window[] | undefined, now: number): Block | null => {
-  if (!windows?.length) return null;
+  if (!windows?.length) {
+    return null;
+  }
   const all = intervals(windows, now);
-  if (all.some(([start, end]) => start <= now && now < end)) return null;
+  if (all.some(([start, end]) => start <= now && now < end)) {
+    return null;
+  }
   const next = Math.min(...all.map(([start]) => start).filter((start) => start > now));
   return { reason: 'window', until: Number.isFinite(next) ? next : null };
 };
@@ -102,7 +114,9 @@ const windowBlock = (windows: Window[] | undefined, now: number): Block | null =
 /** When the current window(s) close, or Infinity. ponytail: overlapping windows that chain
  *  (06:00–07:00 + 07:00–08:00) end at the first one's end. Merge them in the config. */
 const windowEnd = (windows: Window[] | undefined, now: number) => {
-  if (!windows?.length) return Infinity;
+  if (!windows?.length) {
+    return Infinity;
+  }
   const ends = intervals(windows, now)
     .filter(([start, end]) => start <= now && now < end)
     .map(([, end]) => end);
@@ -122,10 +136,15 @@ export const check = (
   station?: string,
 ): Block | null => {
   const usage = forToday(today, now);
-  if (usage.free) return null;
-  if (usage.pauseUntil > now) return { reason: 'pause', until: usage.pauseUntil };
-  if (limits.perDay != null && usage.used >= (limits.perDay + usage.extra) * minute)
+  if (usage.free) {
+    return null;
+  }
+  if (usage.pauseUntil > now) {
+    return { reason: 'pause', until: usage.pauseUntil };
+  }
+  if (limits.perDay != null && usage.used >= (limits.perDay + usage.extra) * minute) {
     return { reason: 'day', until: tomorrow(now) };
+  }
   return (
     windowBlock(limits.windows, now) ??
     (station ? windowBlock(limits.stations?.[station]?.windows, now) : null)
@@ -134,7 +153,9 @@ export const check = (
 
 /** When the playing station must stop (Infinity = never), for the countdown and the heartbeat. */
 export const stopAt = (limits: Limits, usage: Usage, now: number) => {
-  if (usage.free || !usage.play) return Infinity;
+  if (usage.free || !usage.play) {
+    return Infinity;
+  }
   const dayLeft =
     limits.perDay == null ? Infinity : (limits.perDay + usage.extra) * minute - usage.used;
   const runEnd =
@@ -157,7 +178,9 @@ const forToday = (usage: Usage, now: number): Usage =>
 /** Counts time since the last beat (a gap longer than staleMs ended the play at its last beat). */
 export const account = (usage: Usage, now: number): Usage => {
   const { play } = usage;
-  if (!play) return forToday(usage, now);
+  if (!play) {
+    return forToday(usage, now);
+  }
   const stale = now - play.last > staleMs;
   const at = stale ? play.last : now;
   const next = forToday(
@@ -175,7 +198,9 @@ export const account = (usage: Usage, now: number): Usage => {
 /** Closes the current play into the log. */
 export const end = (usage: Usage): Usage => {
   const { play } = usage;
-  if (!play) return usage;
+  if (!play) {
+    return usage;
+  }
   const entry = {
     at: play.start,
     user: play.user,
@@ -201,8 +226,12 @@ export const start = (
 /** Heartbeat while playing: count, and stop when a limit is reached (a full run → pause). */
 export const beat = (limits: Limits, usage: Usage, now: number) => {
   const next = account(usage, now);
-  if (!next.play) return { usage: next, stop: true };
-  if (now < stopAt(limits, next, now)) return { usage: next, stop: false };
+  if (!next.play) {
+    return { usage: next, stop: true };
+  }
+  if (now < stopAt(limits, next, now)) {
+    return { usage: next, stop: false };
+  }
   const runOver =
     !next.free &&
     limits.perSession != null &&

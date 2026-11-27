@@ -12,8 +12,12 @@ export const pinCheck = (expected = () => secret('ADMIN_PIN'), now = Date.now) =
   let lockedUntil = 0;
   return (pin: string | null) => {
     const want = expected();
-    if (!want) return 'ADMIN_PIN nicht gesetzt';
-    if (now() < lockedUntil) return 'gesperrt, 1 Minute warten';
+    if (!want) {
+      return 'ADMIN_PIN nicht gesetzt';
+    }
+    if (now() < lockedUntil) {
+      return 'gesperrt, 1 Minute warten';
+    }
     if (pin === want) {
       misses = 0;
       return null;

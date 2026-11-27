@@ -27,7 +27,9 @@ const send = (path: string, body = {}) =>
   });
 /** Takes the server's limits view from any radio response; null if it wasn't one. */
 const sync = async (res: Response) => {
-  if (!res.headers.get('content-type')?.includes('json')) return null;
+  if (!res.headers.get('content-type')?.includes('json')) {
+    return null;
+  }
   limits = (await res.json()) as LimitsView & { stop?: boolean };
   updateStopButton();
   rerender();
@@ -35,7 +37,9 @@ const sync = async (res: Response) => {
 };
 /** Minutes until the forced stop, once inside the warning time; else null. */
 const warning = () => {
-  if (!limits?.stopAt || !playing) return null;
+  if (!limits?.stopAt || !playing) {
+    return null;
+  }
   const left = Math.max(0, Math.ceil((limits.stopAt - Date.now()) / 60_000));
   return left <= limits.warnBefore ? left : null;
 };
@@ -55,7 +59,9 @@ const heartbeat = async () => {
   const view = await send('beat')
     .then(sync)
     .catch(() => null);
-  if (view?.stop) stop();
+  if (view?.stop) {
+    stop();
+  }
 };
 
 // Stuck on "Verbinde …" (a stream server hangs without an error): restart from the station's own
@@ -68,18 +74,24 @@ let retries = 0;
 const setStatus = (next: typeof status) => {
   status = next;
   clearTimeout(retryTimer);
-  if (next === 'loading') retryTimer = setTimeout(retry, retryMs);
+  if (next === 'loading') {
+    retryTimer = setTimeout(retry, retryMs);
+  }
   if (next === 'error' || next === 'idle') {
-    if (beatTimer)
+    if (beatTimer) {
       send('stop')
         .then(sync)
         .catch(() => {});
+    }
     clearInterval(beatTimer);
     beatTimer = undefined;
   }
   updateStopButton();
-  if (playing && status !== 'error') document.body.append(stopButton);
-  else stopButton.remove();
+  if (playing && status !== 'error') {
+    document.body.append(stopButton);
+  } else {
+    stopButton.remove();
+  }
   rerender();
 };
 
@@ -91,7 +103,9 @@ const disconnect = () => {
 /** A tap: ask the server first (limits), then play. */
 const start = async (station: Station) => {
   const view = await send('play', { station: station.id }).then(sync);
-  if (!view || view.stations[station.id]) return; // blocked: the tile now says why
+  if (!view || view.stations[station.id]) {
+    return; // blocked: the tile now says why
+  }
   play(station);
   clearInterval(beatTimer);
   beatTimer = setInterval(heartbeat, beatMs);
@@ -99,14 +113,20 @@ const start = async (station: Station) => {
 const play = (station: Station, isRetry = false) => {
   playing = station;
   blocked = false;
-  if (!isRetry) retries = 0;
+  if (!isRetry) {
+    retries = 0;
+  }
   audio.src = station.url;
   setStatus('loading');
   audio.play().catch(() => {}); // failures arrive as an 'error' event
 };
 const retry = () => {
-  if (!playing) return;
-  if (++retries <= maxRetries) return play(playing, true);
+  if (!playing) {
+    return;
+  }
+  if (++retries <= maxRetries) {
+    return play(playing, true);
+  }
   disconnect();
   setStatus('error');
 };
@@ -122,14 +142,18 @@ audio.onplaying = () => {
 };
 audio.onwaiting = () => setStatus('loading');
 audio.onerror = () => {
-  if (playing && audio.getAttribute('src')) setStatus('error');
+  if (playing && audio.getAttribute('src')) {
+    setStatus('error');
+  }
 };
 
 // The CSP is fixed at page load; a station added since then (here or on another screen) is
 // blocked until a reload picks up the new policy. Reload once per station; blocked again means a
 // redirect went somewhere wildcard() didn't foresee.
 document.addEventListener('securitypolicyviolation', (event) => {
-  if (event.effectiveDirective !== 'media-src' || !playing) return;
+  if (event.effectiveDirective !== 'media-src' || !playing) {
+    return;
+  }
   if (sessionStorage.getItem('radio:csp') !== playing.id) {
     sessionStorage.setItem('radio:csp', playing.id);
     return location.reload();
@@ -151,9 +175,13 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
   const refresh = async () => {
     loadLimits(); // windows open and close with the clock
     const id = playing?.id;
-    if (!id || status !== 'playing') return;
+    if (!id || status !== 'playing') {
+      return;
+    }
     const res = await ctx.api(`now?id=${encodeURIComponent(id)}`);
-    if (!res.ok || playing?.id !== id) return;
+    if (!res.ok || playing?.id !== id) {
+      return;
+    }
     now = { id, title: ((await res.json()) as { title: string }).title };
     render();
   };
@@ -162,26 +190,43 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
   const hm = (ms: number) =>
     new Date(ms).toLocaleTimeString(ctx.locale, { hour: '2-digit', minute: '2-digit' });
   const reasonText = (block: Block) => {
-    if (block.reason === 'pause') return `😴 Pause bis ${hm(block.until ?? 0)}`;
-    if (block.reason === 'day') return '⏳ morgen wieder';
-    if (block.until == null) return '🔒';
+    if (block.reason === 'pause') {
+      return `😴 Pause bis ${hm(block.until ?? 0)}`;
+    }
+    if (block.reason === 'day') {
+      return '⏳ morgen wieder';
+    }
+    if (block.until == null) {
+      return '🔒';
+    }
     const sameDay = new Date(block.until).toDateString() === new Date().toDateString();
     const day = new Date(block.until).toLocaleDateString(ctx.locale, { weekday: 'short' });
     return `🔒 ${sameDay ? 'ab' : day} ${hm(block.until)}`;
   };
   const summary = () => {
-    if (!limits?.configured) return '';
-    if (limits.free) return '🎉 Heute ohne Limit';
-    if (limits.blocked) return reasonText(limits.blocked);
-    if (limits.leftToday != null)
+    if (!limits?.configured) {
+      return '';
+    }
+    if (limits.free) {
+      return '🎉 Heute ohne Limit';
+    }
+    if (limits.blocked) {
+      return reasonText(limits.blocked);
+    }
+    if (limits.leftToday != null) {
       return `⏳ noch ${Math.ceil(limits.leftToday / 60_000)} Min heute`;
+    }
     return '';
   };
   const statusText = (s: Station) => {
     const block = limits?.stations[s.id];
-    if (playing?.id !== s.id) return block ? reasonText(block) : '';
+    if (playing?.id !== s.id) {
+      return block ? reasonText(block) : '';
+    }
     const left = warning();
-    if (status === 'playing' && left != null) return `⏳ noch ${left} Min`;
+    if (status === 'playing' && left != null) {
+      return `⏳ noch ${left} Min`;
+    }
     return { idle: '', loading: 'Verbinde …', playing: '🔊', error: '⚠️ nicht erreichbar' }[status];
   };
   const adminLimits = () =>
@@ -268,10 +313,14 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
 
   const load = async () => {
     const res = await ctx.api('stations');
-    if (res.ok) stations = await res.json();
+    if (res.ok) {
+      stations = await res.json();
+    }
     // after a CSP reload: retry the blocked station (may still need a tap if autoplay is off)
     const retry = stations.find((s) => s.id === sessionStorage.getItem('radio:csp'));
-    if (retry && !playing) await start(retry);
+    if (retry && !playing) {
+      await start(retry);
+    }
     render();
   };
 
@@ -287,11 +336,17 @@ export const mount: Mount<RadioConfig> = (el, ctx) => {
   el.onclick = (event) => {
     const target = (event.target as Element).closest<HTMLElement>('button');
     const station = stations.find((s) => s.id === target?.dataset.play);
-    if (station) return playing?.id === station.id && status !== 'error' ? stop() : start(station);
-    if (target?.dataset.limit) return send(target.dataset.limit).then(sync);
+    if (station) {
+      return playing?.id === station.id && status !== 'error' ? stop() : start(station);
+    }
+    if (target?.dataset.limit) {
+      return send(target.dataset.limit).then(sync);
+    }
     const removeId = target?.dataset.remove;
     if (removeId && confirm('Sender entfernen?')) {
-      if (playing?.id === removeId) stop();
+      if (playing?.id === removeId) {
+        stop();
+      }
       post('remove', { id: removeId });
     }
   };

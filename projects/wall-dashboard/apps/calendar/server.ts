@@ -11,10 +11,16 @@ const toEventTime = (time: ICAL.Time) =>
 /** All occurrences overlapping [from, to), recurrences and their exceptions expanded. */
 export const expand = (ics: string, from: Date, to: Date): Occurrence[] => {
   const root = new ICAL.Component(ICAL.parse(ics));
-  for (const tz of root.getAllSubcomponents('vtimezone')) ICAL.TimezoneService.register(tz);
+  for (const tz of root.getAllSubcomponents('vtimezone')) {
+    ICAL.TimezoneService.register(tz);
+  }
   const events = root.getAllSubcomponents('vevent').map((c) => new ICAL.Event(c));
   const masters = new Map(events.filter((e) => !e.isRecurrenceException()).map((e) => [e.uid, e]));
-  for (const e of events) if (e.isRecurrenceException()) masters.get(e.uid)?.relateException(e);
+  for (const e of events) {
+    if (e.isRecurrenceException()) {
+      masters.get(e.uid)?.relateException(e);
+    }
+  }
   const orphans = events.filter((e) => e.isRecurrenceException() && !masters.has(e.uid));
 
   const out: Occurrence[] = [];
@@ -23,13 +29,17 @@ export const expand = (ics: string, from: Date, to: Date): Occurrence[] => {
     // ponytail: walks from DTSTART; cap guards ancient daily series, add a seek if one ever hits it
     for (let n = 0; n < 5000; n++) {
       const next = it.next();
-      if (!next) break;
+      if (!next) {
+        break;
+      }
       const { startDate, endDate, item } = event.isRecurrenceException()
         ? { startDate: event.startDate, endDate: event.endDate, item: event }
         : event.getOccurrenceDetails(next);
       const start = startDate.toJSDate();
-      if (start >= to) break;
-      if (endDate.toJSDate() > from || start >= from)
+      if (start >= to) {
+        break;
+      }
+      if (endDate.toJSDate() > from || start >= from) {
         out.push({
           title: item.summary ?? '',
           start: toEventTime(startDate),
@@ -37,7 +47,10 @@ export const expand = (ics: string, from: Date, to: Date): Occurrence[] => {
           allDay: startDate.isDate,
           location: item.location ?? '',
         });
-      if (event.isRecurrenceException()) break;
+      }
+      if (event.isRecurrenceException()) {
+        break;
+      }
     }
   }
   return out;
@@ -48,10 +61,14 @@ const ttl = 10 * 60 * 1000;
 const cache = new Map<string, { at: number; ics: string }>();
 const load = async (url: string) => {
   const hit = cache.get(url);
-  if (hit && Date.now() - hit.at < ttl) return hit.ics;
+  if (hit && Date.now() - hit.at < ttl) {
+    return hit.ics;
+  }
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
     const ics = await res.text();
     cache.set(url, { at: Date.now(), ics });
     return ics;
@@ -62,7 +79,9 @@ const load = async (url: string) => {
 };
 
 const handler: Handler<CalendarConfig> = async (req, { config, users, path }) => {
-  if (path !== 'events') return new Response('not found', { status: 404 });
+  if (path !== 'events') {
+    return new Response('not found', { status: 404 });
+  }
   const asked = Number(new URL(req.url).searchParams.get('days'));
   const days = Math.min(31, Math.max(1, asked || config.days));
   const from = new Date();
@@ -72,7 +91,9 @@ const handler: Handler<CalendarConfig> = async (req, { config, users, path }) =>
 
   const perFeed = await Promise.all(
     config.feeds.map(async ({ url, ...feed }) => {
-      if (!url) return [];
+      if (!url) {
+        return [];
+      }
       const color = feed.color ?? users.find((u) => u.id === feed.user)?.color ?? '#95a5a6';
       try {
         const ics = await load(url);

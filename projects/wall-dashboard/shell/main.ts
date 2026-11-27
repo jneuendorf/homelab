@@ -17,8 +17,11 @@ const remembered = (key: string) => {
 };
 const remember = (key: string, value: string | null) => {
   try {
-    if (value === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, value);
+    if (value === null) {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, value);
+    }
   } catch {}
 };
 
@@ -36,13 +39,19 @@ const source = new EventSource('/api/events');
 source.onmessage = (event) => {
   const { topic, data } = JSON.parse(event.data);
   const json = JSON.stringify(data);
-  if (ownWrites.get(topic) === json) return void ownWrites.delete(topic);
-  for (const cb of listeners.get(topic) ?? []) cb(data);
+  if (ownWrites.get(topic) === json) {
+    return void ownWrites.delete(topic);
+  }
+  for (const cb of listeners.get(topic) ?? []) {
+    cb(data);
+  }
 };
 // A reconnect means the server restarted (deploy) or the tablet woke up: reload code + data.
 let connected = false;
 source.onopen = () => {
-  if (connected) location.reload();
+  if (connected) {
+    location.reload();
+  }
   connected = true;
 };
 
@@ -85,7 +94,9 @@ const show = async () => {
   unmount();
   unmount = () => {};
   const mine = ++generation;
-  if (!listed().includes(current)) current = listed()[0];
+  if (!listed().includes(current)) {
+    current = listed()[0];
+  }
   const app = current;
   renderChrome();
 
@@ -94,8 +105,12 @@ const show = async () => {
   // every request says who is selected (for the activity log) and, while unlocked, the PIN
   const headers = (init?: HeadersInit) => {
     const all = new Headers(init);
-    if (user) all.set('x-user', user.id);
-    if (pin) all.set('x-pin', pin);
+    if (user) {
+      all.set('x-user', user.id);
+    }
+    if (pin) {
+      all.set('x-pin', pin);
+    }
     return all;
   };
   const json = { 'content-type': 'application/json' };
@@ -111,7 +126,9 @@ const show = async () => {
         ...init,
         headers: headers(init?.headers),
       });
-      if (res.status === 403 && pin) lock(); // PIN changed on the server or locked out
+      if (res.status === 403 && pin) {
+        lock(); // PIN changed on the server or locked out
+      }
       return res;
     },
     store: {
@@ -144,29 +161,39 @@ const show = async () => {
   el.className = `app app-${app.id}`;
   try {
     const { mount } = await app.ui();
-    if (mine !== generation) return; // tapped something else while the chunk loaded
+    if (mine !== generation) {
+      return; // tapped something else while the chunk loaded
+    }
     main.replaceChildren(el);
     const cleanup = mount(el, ctx);
     unmount = () => {
       cleanup();
-      for (const [topic, cb] of subscriptions) listeners.get(topic)?.delete(cb);
+      for (const [topic, cb] of subscriptions) {
+        listeners.get(topic)?.delete(cb);
+      }
     };
   } catch (error) {
     console.error(error);
-    if (mine === generation) main.innerHTML = html`<p class="app-error">⚠️ ${app.label} n/a</p>`;
+    if (mine === generation) {
+      main.innerHTML = html`<p class="app-error">⚠️ ${app.label} n/a</p>`;
+    }
   }
 };
 
 nav.onclick = (event) => {
   const id = (event.target as Element).closest<HTMLElement>('[data-app]')?.dataset.app;
   const next = listed().find((app) => app.id === id);
-  if (!next || next === current) return;
+  if (!next || next === current) {
+    return;
+  }
   current = next;
   remember('wall:app', next.id);
   show();
 };
 const selectUser = (next: User | null) => {
-  if (!next?.admin) pin = null; // leaving the admin locks it
+  if (!next?.admin) {
+    pin = null; // leaving the admin locks it
+  }
   user = next;
   remember('wall:user', next?.admin ? null : (next?.id ?? null));
   show();
@@ -177,10 +204,14 @@ const idleMs = 5 * 60_000;
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 const lock = () => {
   clearTimeout(idleTimer);
-  if (user?.admin) selectUser(null);
+  if (user?.admin) {
+    selectUser(null);
+  }
 };
 document.addEventListener('pointerdown', () => {
-  if (!pin) return;
+  if (!pin) {
+    return;
+  }
   clearTimeout(idleTimer);
   idleTimer = setTimeout(lock, idleMs);
 });
@@ -209,8 +240,12 @@ const askPin = (admin: User) => {
 };
 keypad.onclick = async (event) => {
   const key = (event.target as Element).closest<HTMLElement>('[data-key]')?.dataset.key;
-  if (key === undefined) return;
-  if (key === '') return keypad.close();
+  if (key === undefined) {
+    return;
+  }
+  if (key === '') {
+    return keypad.close();
+  }
   if (key !== 'OK') {
     entry = key === '⌫' ? entry.slice(0, -1) : (entry + key).slice(0, 8);
     return showEntry();
@@ -223,15 +258,23 @@ keypad.onclick = async (event) => {
   pin = entry;
   keypad.close();
   idleTimer = setTimeout(lock, idleMs);
-  if (pending) selectUser(pending);
+  if (pending) {
+    selectUser(pending);
+  }
 };
 
 who.onclick = (event) => {
   const id = (event.target as Element).closest<HTMLElement>('[data-user]')?.dataset.user;
-  if (id === undefined) return;
+  if (id === undefined) {
+    return;
+  }
   const next = users.find((u) => u.id === id) ?? null;
-  if (next === user) return;
-  if (next?.admin && !pin) return askPin(next);
+  if (next === user) {
+    return;
+  }
+  if (next?.admin && !pin) {
+    return askPin(next);
+  }
   selectUser(next);
 };
 

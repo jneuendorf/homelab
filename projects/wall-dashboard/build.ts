@@ -7,10 +7,14 @@ import { configPath } from './server/config.ts';
 
 for (const dir of readdirSync('apps')) {
   const pkg = `apps/${dir}/package.json`;
-  if (!existsSync(pkg) || !JSON.parse(readFileSync(pkg, 'utf8')).scripts?.build) continue;
+  if (!existsSync(pkg) || !JSON.parse(readFileSync(pkg, 'utf8')).scripts?.build) {
+    continue;
+  }
   const run = (...args: string[]) =>
     execFileSync('npm', args, { cwd: `apps/${dir}`, stdio: 'inherit' });
-  if (!existsSync(`apps/${dir}/node_modules`)) run('ci');
+  if (!existsSync(`apps/${dir}/node_modules`)) {
+    run('ci');
+  }
   run('run', 'build');
 }
 

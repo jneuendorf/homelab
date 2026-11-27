@@ -361,13 +361,13 @@ Typecheck config changes on the Mac first (`npm --prefix projects/wall-dashboard
    `ctx.store.set` and react to other screens with `ctx.subscribe` — the lists app does both:
 
    <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={58} end={67} />
-   <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={99} end={106} />
+   <CodeSnippet file="projects/wall-dashboard/apps/lists/ui.ts" start={103} end={113} />
 
 3. **Need secrets, validation or a remote fetch?** Add `server.ts` with a default `Handler` and
    point `server` at it. Omit `label` / `ui` for a server-only app without a menubar entry — the
    weather app fetches on request and caches, so no timer runs while nobody looks:
 
-   <CodeSnippet file="projects/wall-dashboard/apps/weather/server.ts" start={28} end={50} />
+   <CodeSnippet file="projects/wall-dashboard/apps/weather/server.ts" start={28} end={56} />
 
 4. **Register it** by calling the factory in `dashboard.config.ts` (and your `dashboard.local.ts`).
 5. **Test the pure parts** in `*.test.ts` (`node --test`, no browser), as `routine/logic.ts` does.

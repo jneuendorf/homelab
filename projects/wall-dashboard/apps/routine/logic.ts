@@ -20,7 +20,9 @@ export const leaderOf = (state: DayState) =>
     .sort((a, b) => a.at - b.at)[0]?.id ?? null;
 
 export const deadlineAt = (deadline: string | null, day = new Date()) => {
-  if (!deadline) return null;
+  if (!deadline) {
+    return null;
+  }
   const [h, m] = deadline.split(':').map(Number);
   return new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, m).getTime();
 };
@@ -28,8 +30,11 @@ export const deadlineAt = (deadline: string | null, day = new Date()) => {
 /** Toggles one item; returns the new user state and whether it just completed/uncompleted. */
 export const toggle = (prev: UserState | undefined, label: string, items: Item[], now: number) => {
   const done = { ...prev?.done };
-  if (done[label]) delete done[label];
-  else done[label] = true;
+  if (done[label]) {
+    delete done[label];
+  } else {
+    done[label] = true;
+  }
   const complete = items.every((item) => done[item.label]);
   const completedAt = complete ? (prev?.completedAt ?? now) : null;
   const change = complete && !prev?.completedAt ? 'completed' : !complete ? 'progress' : 'none';

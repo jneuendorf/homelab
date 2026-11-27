@@ -58,7 +58,9 @@ test('readIcyTitle reads StreamTitle after metaint audio bytes, across chunks', 
   block.set(meta);
   const body = new Uint8Array([...new Uint8Array(8), block.length / 16, ...block, 1, 2, 3]);
   const chunks = async function* () {
-    for (let i = 0; i < body.length; i += 5) yield body.subarray(i, i + 5);
+    for (let i = 0; i < body.length; i += 5) {
+      yield body.subarray(i, i + 5);
+    }
   };
   assert.equal(await readIcyTitle(chunks(), 8), 'Maus - Club');
   assert.equal(await readIcyTitle(chunks(), 200), '');

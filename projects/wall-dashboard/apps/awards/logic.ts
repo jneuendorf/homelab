@@ -74,8 +74,12 @@ export const progress = (goal: Goal, stars: Star[], today: string) => {
   for (let day = goal.start; day <= last; day = addDays(day, 1)) {
     if (days.has(day)) {
       streak++;
-      if (goal.streak && streak % goal.streak.days === 0) bonus += goal.streak.bonus;
-    } else if (day < today) streak = 0; // today without a star yet keeps yesterday's streak
+      if (goal.streak && streak % goal.streak.days === 0) {
+        bonus += goal.streak.bonus;
+      }
+    } else if (day < today) {
+      streak = 0; // today without a star yet keeps yesterday's streak
+    }
   }
   const earned = own.reduce((sum, s) => sum + s.stars, 0) + bonus;
   return { earned, bonus, streak, reached: earned >= goal.target, ended: today > goal.end };
@@ -167,7 +171,9 @@ export const apply = (
       const target = int(g.target, 1, 1000);
       const start = day(g.start);
       const end = day(g.end);
-      if (end < start) fail('end before start');
+      if (end < start) {
+        fail('end before start');
+      }
       const streak = g.streak == null ? null : obj(g.streak);
       const goal: Goal = {
         owner,

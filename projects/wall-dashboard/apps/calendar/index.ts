@@ -40,7 +40,9 @@ export const fetchEvents = async (days: number, user?: string | null) => {
 
 /** Local Date for an event's start (all-day dates are local midnight, not UTC). */
 export const startOf = (event: CalendarEvent) => {
-  if (!event.allDay) return new Date(event.start);
+  if (!event.allDay) {
+    return new Date(event.start);
+  }
   const [y, m, d] = event.start.split('-').map(Number);
   return new Date(y, m - 1, d);
 };

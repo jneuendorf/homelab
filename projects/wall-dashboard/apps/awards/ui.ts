@@ -77,7 +77,9 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
 
   const track = (goal: Goal) => {
     const owner = who(goal.owner);
-    if (!owner) return '';
+    if (!owner) {
+      return '';
+    }
     const p = progress(goal, state.stars, today);
     const pct = (n: number) => Math.min(100, (n / goal.target) * 100);
     const next = goal.checkpoints.find((c) => c.at > p.earned) ?? {
@@ -153,7 +155,9 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
 
   const pending = () => {
     const list = state.stars.filter((s) => !s.confirmed && (!ctx.user || s.user === ctx.user.id));
-    if (!list.length) return '';
+    if (!list.length) {
+      return '';
+    }
     return raw(
       html`<div class="aw-pending">
         <span class="ui-dim">${ctx.admin ? 'Bestätigen:' : '⏳ wartet auf Eltern:'}</span>
@@ -251,7 +255,9 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
 
   const celebrate = (level: Level, message: string) => {
     const { pieces, ms, notes } = party[level];
-    if (ctx.config.sound) chime(notes);
+    if (ctx.config.sound) {
+      chime(notes);
+    }
     const layer = document.createElement('div');
     layer.className = `aw-party ${level}`;
     layer.innerHTML =
@@ -278,7 +284,9 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
     for (const goal of state.goals) {
       const before = earnedBefore?.get(`${goal.owner}:${goal.start}`);
       const now = earned.get(`${goal.owner}:${goal.start}`) ?? 0;
-      if (before === undefined || now <= before) continue;
+      if (before === undefined || now <= before) {
+        continue;
+      }
       const name = who(goal.owner)?.name ?? '';
       const crossed = goal.checkpoints.find((c) => before < c.at && now >= c.at);
       const hit: { level: Level; message: string } =
@@ -290,11 +298,15 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
           : crossed
             ? { level: 'checkpoint', message: `${name}: ${crossed.icon} ${crossed.label}!` }
             : { level: 'star', message: '' };
-      if (!best || order.indexOf(hit.level) > order.indexOf(best.level)) best = hit;
+      if (!best || order.indexOf(hit.level) > order.indexOf(best.level)) {
+        best = hit;
+      }
     }
     earnedBefore = earned;
     render();
-    if (best) celebrate(best.level, best.message);
+    if (best) {
+      celebrate(best.level, best.message);
+    }
   };
 
   // ── dialogs ──────────────────────────────────────────────────────────────────────────────────
@@ -365,7 +377,9 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
   });
   const activeGoal = (owner: string) => {
     const goal = state.goals.find((g) => g.owner === owner);
-    if (!goal) return null;
+    if (!goal) {
+      return null;
+    }
     const p = progress(goal, state.stars, today);
     return p.reached || p.ended ? null : goal;
   };
@@ -373,7 +387,9 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
   const previousGoal = (owner: string): Goal | null => {
     const last =
       state.goals.find((g) => g.owner === owner) ?? state.history.find((g) => g.owner === owner);
-    if (!last) return null;
+    if (!last) {
+      return null;
+    }
     const { target, reward, checkpoints, streak } = last;
     const end = addDays(today, daysBetween(last.start, last.end));
     return { owner, target, reward, checkpoints, streak, start: today, end };
@@ -509,7 +525,9 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
 
   const open = (name: string, content = dialogs[name]()) => {
     dialog.innerHTML = content;
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) {
+      dialog.showModal();
+    }
   };
 
   const readGoal = (form: FormData): Goal => {
@@ -545,13 +563,14 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
     const data = new FormData(form);
     const kind = form.dataset.form;
     let res: Response | undefined;
-    if (kind === 'bonus')
+    if (kind === 'bonus') {
       res = await post('bonus', {
         user: data.get('owner'),
         stars: Number(data.get('stars')),
         label: String(data.get('label')),
         day: today,
       });
+    }
     if (kind === 'goal') {
       const goal = readGoal(data);
       // a running goal is edited in place; a finished one goes to the trophy shelf
@@ -572,21 +591,31 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
       }));
       res = await post('missions', { missions });
     }
-    if (res?.ok) dialog.close();
-    else if (res) alert(await res.text());
+    if (res?.ok) {
+      dialog.close();
+    } else if (res) {
+      alert(await res.text());
+    }
   };
 
   dialog.onclick = (event) => {
     const target = event.target as HTMLElement;
     const d = target.closest<HTMLElement>('button')?.dataset;
-    if (!d) return;
-    if (d.close !== undefined) dialog.close();
-    if (d.removeRow !== undefined) target.closest('.aw-row')?.remove();
-    if (d.add)
+    if (!d) {
+      return;
+    }
+    if (d.close !== undefined) {
+      dialog.close();
+    }
+    if (d.removeRow !== undefined) {
+      target.closest('.aw-row')?.remove();
+    }
+    if (d.add) {
       $(dialog, '[data-rows]').insertAdjacentHTML(
         'beforeend',
         d.add === 'mission' ? missionRow() : checkpointRow(),
       );
+    }
     const form = target.closest('form');
     if (d.span && form) {
       const start = form.elements.namedItem('start') as HTMLInputElement;
@@ -598,54 +627,78 @@ export const mount: Mount<AwardsConfig> = (el, ctx) => {
     if (d.reuse !== undefined && form) {
       const owner = (form.elements.namedItem('owner') as HTMLSelectElement).value;
       const previous = previousGoal(owner);
-      if (previous) open('goal', goalForm(previous));
+      if (previous) {
+        open('goal', goalForm(previous));
+      }
     }
   };
   // switching the owner loads that owner's running goal (or a fresh one)
   dialog.onchange = (event) => {
     const target = event.target as HTMLSelectElement;
-    if (target.name !== 'owner' || target.form?.dataset.form !== 'goal') return;
+    if (target.name !== 'owner' || target.form?.dataset.form !== 'goal') {
+      return;
+    }
     open('goal', goalForm(activeGoal(target.value) ?? freshGoal(target.value)));
   };
 
   main.onclick = (event) => {
     const d = (event.target as Element).closest<HTMLElement>('button')?.dataset;
-    if (!d) return;
+    if (!d) {
+      return;
+    }
     if (d.mission) {
-      if (ctx.user) post('claim', { user: ctx.user.id, mission: d.mission, day: today });
-      else {
+      if (ctx.user) {
+        post('claim', { user: ctx.user.id, mission: d.mission, day: today });
+      } else {
         picking = picking === d.mission ? null : d.mission;
         render();
       }
-      if (ctx.config.sound && ctx.user) chime([660]);
+      if (ctx.config.sound && ctx.user) {
+        chime([660]);
+      }
     }
     if (d.claim !== undefined) {
       if (d.claim && picking) {
         post('claim', { user: d.claim, mission: picking, day: today });
-        if (ctx.config.sound) chime([660]);
+        if (ctx.config.sound) {
+          chime([660]);
+        }
       }
       picking = null;
       render();
     }
-    if (d.confirm) post('confirm', { ids: [d.confirm] });
-    if (d.confirmAll !== undefined)
+    if (d.confirm) {
+      post('confirm', { ids: [d.confirm] });
+    }
+    if (d.confirmAll !== undefined) {
       post('confirm', {
         ids: state.stars.filter((s) => !s.confirmed).map((s) => s.id),
       });
-    if (d.drop) post(ctx.admin ? 'remove' : 'withdraw', { id: d.drop });
-    if (d.open) open(d.open);
+    }
+    if (d.drop) {
+      post(ctx.admin ? 'remove' : 'withdraw', { id: d.drop });
+    }
+    if (d.open) {
+      open(d.open);
+    }
   };
 
   ctx.subscribe('state', (data) => update(data as State));
   ctx.api('state').then(async (res) => update(await res.json()));
   const stop = everyMinute(() => {
-    if (dayKey() === today) return;
+    if (dayKey() === today) {
+      return;
+    }
     today = dayKey(); // midnight: new column, maybe ended goals
     render();
   });
   return () => {
     stop();
-    for (const t of timers) clearTimeout(t);
-    if (dialog.open) dialog.close();
+    for (const t of timers) {
+      clearTimeout(t);
+    }
+    if (dialog.open) {
+      dialog.close();
+    }
   };
 };

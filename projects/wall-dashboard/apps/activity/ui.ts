@@ -18,8 +18,12 @@ export const mount: Mount<ActivityConfig> = (el, ctx) => {
     const d = new Date(at);
     const today = new Date();
     const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-    if (d.toDateString() === today.toDateString()) return 'Heute';
-    if (d.toDateString() === yesterday.toDateString()) return 'Gestern';
+    if (d.toDateString() === today.toDateString()) {
+      return 'Heute';
+    }
+    if (d.toDateString() === yesterday.toDateString()) {
+      return 'Gestern';
+    }
     return d.toLocaleDateString(ctx.locale, { weekday: 'long', day: 'numeric', month: 'long' });
   };
   const who = (id: string | null) => dashboard.users.find((u) => u.id === id);
@@ -64,13 +68,17 @@ export const mount: Mount<ActivityConfig> = (el, ctx) => {
 
   const load = async () => {
     const res = await ctx.api(`log?days=${ctx.config.days}`);
-    if (res.ok) entries = await res.json();
+    if (res.ok) {
+      entries = await res.json();
+    }
     render();
   };
 
   el.onclick = (event) => {
     const id = (event.target as Element).closest<HTMLElement>('[data-filter]')?.dataset.filter;
-    if (id === undefined) return;
+    if (id === undefined) {
+      return;
+    }
     filter = id || null;
     render();
   };

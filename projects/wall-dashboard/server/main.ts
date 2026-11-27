@@ -61,7 +61,9 @@ const addLog = (app: string, user: string | null, text: string) => {
 const clients = new Set<ServerResponse>();
 const publish = (app: string, topic: string, data: unknown) => {
   const message = `data: ${JSON.stringify({ topic: `${app}:${topic}`, data })}\n\n`;
-  for (const client of clients) client.write(message);
+  for (const client of clients) {
+    client.write(message);
+  }
 };
 
 const storeFor = (app: string): ServerStore => ({
@@ -78,18 +80,23 @@ const storeFor = (app: string): ServerStore => ({
 const apps = new Map(dashboard.apps.map((app) => [app.id, app]));
 // biome-ignore lint/suspicious/noExplicitAny: one map for handlers of every app's config type
 const handlers = new Map<string, Handler<any>>();
-for (const app of dashboard.apps)
-  if (app.server) handlers.set(app.id, (await app.server()).default);
+for (const app of dashboard.apps) {
+  if (app.server) {
+    handlers.set(app.id, (await app.server()).default);
+  }
+}
 
 // ponytail: rebuilt per request (one sqlite read per app with csp); cache by store write if it shows up
 const contentSecurityPolicy = () => {
   const csp = structuredClone(baseCsp);
   // app sources may come from stored data: nothing that could end a directive or the header
-  for (const app of dashboard.apps)
+  for (const app of dashboard.apps) {
     for (const [directive, sources] of Object.entries(
       app.csp?.({ config: app.config, store: storeFor(app.id) }) ?? {},
-    ))
+    )) {
       csp[directive] = [...(csp[directive] ?? []), ...sources.filter((s) => /^[^\s;,]+$/.test(s))];
+    }
+  }
   return Object.entries(csp)
     .map(([directive, sources]) => [directive, ...new Set(sources)].join(' '))
     .join('; ');
@@ -115,7 +122,9 @@ const readBody = async (req: IncomingMessage) => {
   let size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size > maxBody) throw Object.assign(new Error('body too large'), { status: 413 });
+    if (size > maxBody) {
+      throw Object.assign(new Error('body too large'), { status: 413 });
+    }
     chunks.push(chunk);
   }
   return Buffer.concat(chunks);
@@ -136,7 +145,9 @@ const userOf = (req: IncomingMessage, admin: boolean): User | null => {
 
 const api = async (req: IncomingMessage, res: ServerResponse, appId: string, path: string) => {
   const app = apps.get(appId);
-  if (!app) return send(res, 404, 'unknown app');
+  if (!app) {
+    return send(res, 404, 'unknown app');
+  }
   const handler = handlers.get(appId);
   const pin = req.headers['x-pin']?.toString() ?? null;
   const admin = pin !== null && checkPin(pin) === null;
@@ -145,12 +156,18 @@ const api = async (req: IncomingMessage, res: ServerResponse, appId: string, pat
   if (path === 'log') {
     if (req.method === 'POST') {
       const { text } = JSON.parse((await readBody(req)).toString('utf8'));
-      if (typeof text !== 'string' || !text.trim()) return send(res, 400, 'bad text');
+      if (typeof text !== 'string' || !text.trim()) {
+        return send(res, 400, 'bad text');
+      }
       addLog(appId, user?.id ?? null, text);
       return send(res, 204, '');
     }
-    if (req.method !== 'GET') return send(res, 405, 'method not allowed');
-    if (!admin) return send(res, 403, 'nur Eltern');
+    if (req.method !== 'GET') {
+      return send(res, 405, 'method not allowed');
+    }
+    if (!admin) {
+      return send(res, 403, 'nur Eltern');
+    }
     const days = Math.min(
       logDays,
       Number(new URL(req.url ?? '', 'http://x').searchParams.get('days')) || 7,
@@ -162,9 +179,13 @@ const api = async (req: IncomingMessage, res: ServerResponse, appId: string, pat
   // An app with a server handler owns its storage (validation, PINs): no raw kv writes around it.
   if (path.startsWith('kv/') && !handler) {
     const key = decodeURIComponent(path.slice(3));
-    if (!/^[\w:.-]{1,200}$/.test(key)) return send(res, 400, 'bad key');
+    if (!/^[\w:.-]{1,200}$/.test(key)) {
+      return send(res, 400, 'bad key');
+    }
     const store = storeFor(appId);
-    if (req.method === 'GET') return send(res, 200, JSON.stringify(store.get(key)), types['.json']);
+    if (req.method === 'GET') {
+      return send(res, 200, JSON.stringify(store.get(key)), types['.json']);
+    }
     if (req.method === 'PUT') {
       store.set(key, JSON.parse((await readBody(req)).toString('utf8')));
       return send(res, 204, '');
@@ -172,10 +193,15 @@ const api = async (req: IncomingMessage, res: ServerResponse, appId: string, pat
     return send(res, 405, 'method not allowed');
   }
 
-  if (!handler) return send(res, 404, 'not found');
+  if (!handler) {
+    return send(res, 404, 'not found');
+  }
   const headers = new Headers();
-  for (const [name, value] of Object.entries(req.headers))
-    if (typeof value === 'string') headers.set(name, value);
+  for (const [name, value] of Object.entries(req.headers)) {
+    if (typeof value === 'string') {
+      headers.set(name, value);
+    }
+  }
   const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
   const request = new Request(
     new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`),
@@ -201,7 +227,9 @@ const api = async (req: IncomingMessage, res: ServerResponse, appId: string, pat
 
 const serveStatic = async (res: ServerResponse, pathname: string) => {
   const file = normalize(join(publicDir, decodeURIComponent(pathname)));
-  if (!file.startsWith(publicDir + sep)) return send(res, 404, 'not found');
+  if (!file.startsWith(publicDir + sep)) {
+    return send(res, 404, 'not found');
+  }
   const target = extname(file) ? file : join(publicDir, 'index.html'); // SPA fallback
   try {
     const body = await readFile(target);
@@ -219,30 +247,45 @@ const serveStatic = async (res: ServerResponse, pathname: string) => {
 };
 
 createServer(async (req, res) => {
-  if (!isLan(req.socket.remoteAddress)) return send(res, 403, 'forbidden');
-  if (!isAllowedHost(req.headers.host, hostNames)) return send(res, 403, 'unknown host');
+  if (!isLan(req.socket.remoteAddress)) {
+    return send(res, 403, 'forbidden');
+  }
+  if (!isAllowedHost(req.headers.host, hostNames)) {
+    return send(res, 403, 'unknown host');
+  }
   const write = req.method !== 'GET' && req.method !== 'HEAD';
-  if (write && !isSameOrigin(req.headers.origin, req.headers.host))
+  if (write && !isSameOrigin(req.headers.origin, req.headers.host)) {
     return send(res, 403, 'cross-origin write');
-  for (const [name, value] of Object.entries(securityHeaders)) res.setHeader(name, value);
+  }
+  for (const [name, value] of Object.entries(securityHeaders)) {
+    res.setHeader(name, value);
+  }
   res.setHeader('content-security-policy', contentSecurityPolicy());
   const { pathname } = new URL(req.url ?? '/', 'http://localhost');
   try {
-    if (pathname === '/api/events') return events(req, res);
+    if (pathname === '/api/events') {
+      return events(req, res);
+    }
     if (pathname === '/api/unlock' && req.method === 'POST') {
       const denied = checkPin(req.headers['x-pin']?.toString() ?? null);
       return denied ? send(res, 403, denied) : send(res, 204, '');
     }
     const route = pathname.match(/^\/api\/([\w-]+)\/(.*)$/);
-    if (route) return await api(req, res, route[1], route[2]);
+    if (route) {
+      return await api(req, res, route[1], route[2]);
+    }
     return await serveStatic(res, pathname === '/' ? '/index.html' : pathname);
   } catch (error) {
     const status =
       (error as { status?: number }).status ??
       (error instanceof SyntaxError || error instanceof URIError ? 400 : 500);
-    if (status === 500) console.error(error);
-    if (!res.headersSent)
+    if (status === 500) {
+      console.error(error);
+    }
+    if (!res.headersSent) {
       send(res, status, status === 500 ? 'internal error' : (error as Error).message);
-    else res.end();
+    } else {
+      res.end();
+    }
   }
 }).listen(port, host, () => console.log(`wall-dashboard on http://${host}:${port}`));

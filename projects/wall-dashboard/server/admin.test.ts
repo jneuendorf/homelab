@@ -9,7 +9,9 @@ test('5 wrong PINs lock even the right one for a minute', () => {
     () => now,
   );
   assert.equal(check('1234'), null);
-  for (let i = 0; i < 5; i++) assert.equal(check('0000'), 'falsche PIN');
+  for (let i = 0; i < 5; i++) {
+    assert.equal(check('0000'), 'falsche PIN');
+  }
   assert.match(check('1234') ?? '', /gesperrt/);
   now = 60_000;
   assert.equal(check('1234'), null);

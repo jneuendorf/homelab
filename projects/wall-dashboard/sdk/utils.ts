@@ -34,13 +34,17 @@ export const raw = (value: string) => new Raw(value);
 /** querySelector that throws instead of returning null — for markup the caller just rendered. */
 export const $ = <E extends Element = HTMLElement>(root: ParentNode, selector: string): E => {
   const found = root.querySelector<E>(selector);
-  if (!found) throw new Error(`missing element: ${selector}`);
+  if (!found) {
+    throw new Error(`missing element: ${selector}`);
+  }
   return found;
 };
 
 /** Injects an app's CSS once (apps import their .css as text). */
 export const adoptStyle = (id: string, css: string) => {
-  if (document.getElementById(`style-${id}`)) return;
+  if (document.getElementById(`style-${id}`)) {
+    return;
+  }
   const style = document.createElement('style');
   style.id = `style-${id}`;
   style.textContent = css;
